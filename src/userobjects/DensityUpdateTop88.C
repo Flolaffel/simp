@@ -44,7 +44,7 @@ DensityUpdateTop88::DensityUpdateTop88(const InputParameters & parameters)
 }
 
 void
-DensityUpdateTop88::timestepSetup()
+DensityUpdateTop88::initialize()
 {
   gatherElementData();
   performOptimCritLoop();
