@@ -15,7 +15,7 @@
 /**
  * Element user object that performs SIMP optimization using a bisection algorithm using a volume
  * constraint.
- * ONLY USE WITH execution_order_group = 1 TO EXECUTE AFTER SensitivityFilter
+ * ONLY USE AT timestep_end WITH execution_order_group = 1 TO EXECUTE AFTER SensitivityFilter
  */
 class DensityUpdateTop88 : public ElementUserObject
 {
