@@ -38,7 +38,7 @@ HEAT_TRANSFER               := no
 LEVEL_SET                   := no
 MISC                        := no
 NAVIER_STOKES               := no
-OPTIMIZATION                := no
+OPTIMIZATION                := yes
 PERIDYNAMICS                := no
 PHASE_FIELD                 := no
 POROUS_FLOW                 := no
@@ -48,7 +48,7 @@ RDG                         := no
 RICHARDS                    := no
 STOCHASTIC_TOOLS            := no
 THERMAL_HYDRAULICS          := no
-TENSOR_MECHANICS            := no
+TENSOR_MECHANICS            := yes
 XFEM                        := no
 
 include $(MOOSE_DIR)/modules/modules.mk
