@@ -153,9 +153,7 @@ Emin = 1e-9
     density_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
-    execute_on = TIMESTEP_BEGIN
-    #force_postaux = true
-    #execution_order_group = 1
+    execute_on = TIMESTEP_END
     bisection_upper_bound = 1e9
   []
   [rad_avg]
@@ -188,7 +186,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 150
+  num_steps = 100
 []
 
 [Outputs]
