@@ -60,7 +60,7 @@ SensitivityFilterTop88::execute()
   for (unsigned int qp = 0; qp < _qrule->n_points(); qp++)
     den_sense_val += qp_vals[qp] * _JxW[qp];
 
-  den_sense_val = (den_sense_val)/(_current_elem_volume);
+  den_sense_val = (den_sense_val)/(_current_elem_volume*x);
   /*_console << "current el: " << _current_elem->id() << "\n" << std::flush;
   _console << "current vol: " << _current_elem_volume << "\n" << std::flush;
   _console << "current dens: " << _design_density.getElementalValue(_current_elem) << "\n" << std::flush;*/
