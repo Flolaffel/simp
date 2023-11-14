@@ -180,11 +180,11 @@ Emin = 1e-9
     execute_on = TIMESTEP_END
     force_postaux = true
   []
-  [opt_conv]
-    type = Terminator
-    expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
-    execute_on = TIMESTEP_END
-  []
+  #[opt_conv]
+  #  type = Terminator
+  #  expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
+  #  execute_on = TIMESTEP_END
+  #[]
 []
 
 [Executioner]
@@ -194,7 +194,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 200
+  num_steps = 94
 []
 
 [Outputs]

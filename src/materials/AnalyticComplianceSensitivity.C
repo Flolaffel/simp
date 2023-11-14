@@ -47,7 +47,6 @@ AnalyticComplianceSensitivity::AnalyticComplianceSensitivity(const InputParamete
 void
 AnalyticComplianceSensitivity::computeQpProperties()
 {
-  _console << "ComplianceSensitivity\n" << std::flush;
   // Call the parent class's method to compute the strain energy density
   StrainEnergyDensity::computeQpProperties();
   // dcdp = -power * p^(power-1) * (E0-Emin) * ue^T * k0 * ue

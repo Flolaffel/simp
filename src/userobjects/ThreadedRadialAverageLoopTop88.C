@@ -48,6 +48,10 @@ ThreadedRadialAverageLoopTop88::operator()(const QPDataRange & qpdata_range)
   const auto end_it = _radavg._average.end();
   auto it = end_it;
 
+  // weight map entry
+  const auto end_it_w = _radavg._weight_sum.end();
+  auto it_w = end_it_w;
+
   // iterate over qp range
   for (auto && local_qp : qpdata_range)
   {
@@ -56,10 +60,18 @@ ThreadedRadialAverageLoopTop88::operator()(const QPDataRange & qpdata_range)
     if (it == end_it || it->first != local_qp._elem_id)
       it = _radavg._average.find(local_qp._elem_id);
 
+    //if (it_w == end_it_w || it_w->first != local_qp._elem_id)
+      it_w = _radavg._weight_sum.find(local_qp._elem_id);
+
     // initialize result entry
     mooseAssert(it != end_it, "Current element id not found in result set.");
     auto & sum = it->second[local_qp._qp];
     sum = 0.0;
+
+    // initialize weight sum entry
+    mooseAssert(it_w != end_it_w, "Current element id not found in result set.");
+    auto & weight_sum = it_w->second[local_qp._qp];
+    weight_sum = 0.0;
 
     ret_matches.clear();
     std::size_t n_result =
@@ -85,6 +97,7 @@ ThreadedRadialAverageLoopTop88::operator()(const QPDataRange & qpdata_range)
 
       sum += other_qp._value * other_qp._volume * weight;
       total_vol += other_qp._volume * weight;
+      weight_sum += weight;
     }
     sum /= total_vol;
   }

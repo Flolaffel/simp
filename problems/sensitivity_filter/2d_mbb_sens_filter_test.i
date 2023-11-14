@@ -7,7 +7,7 @@ nx = 60
 ny = 20
 p = 3
 vol_frac = 0.5
-#filter_radius = 1.5
+filter_radius = 1.5
 E0 = 1
 Emin = 1e-9
 
@@ -64,7 +64,6 @@ Emin = 1e-9
   [Dc]
     family = MONOMIAL
     order = CONSTANT
-    #initial_condition = -1.0
   []
   [rho]
     family = MONOMIAL
@@ -94,21 +93,14 @@ Emin = 1e-9
     boundary = left
     value = 0.0
   []
-  #[load]
-  #  type = NeumannBC
-  #  variable = disp_x
-  #  boundary = push
-  #  value = -1
-  #[]
 []
 
 [NodalKernels]
   [pull]
-    type = NodalGravity
+    type = ConstantRate
     variable = disp_y
     boundary = push
-    gravity_value = -1
-    mass = 1
+    rate = -1
   []
 []
 
@@ -135,10 +127,13 @@ Emin = 1e-9
     type = ComputeLinearElasticStress
   []
   [dc]
-    type = ComplianceSensitivity
+    type = AnalyticComplianceSensitivity
     design_density = rho
     youngs_modulus = E_phys
     incremental = false
+    E0 = ${E0}
+    Emin = ${Emin}
+    p = ${p}
   []
   [filter_mat]
     type = ParsedMaterial
@@ -155,6 +150,7 @@ Emin = 1e-9
     full = true
   []
 []
+
 [UserObjects]  
   [update]
     type = DensityUpdateTop88
@@ -165,8 +161,8 @@ Emin = 1e-9
     bisection_upper_bound = 1e9
   []
   [rad_avg]
-    type = RadialAverage
-    radius = 1.5
+    type = RadialAverageTop88
+    radius = ${filter_radius}
     weights = linear
     prop_name = filter_mat
     execute_on = TIMESTEP_END
@@ -194,7 +190,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 200
+  num_steps = 94
 []
 
 [Outputs]
