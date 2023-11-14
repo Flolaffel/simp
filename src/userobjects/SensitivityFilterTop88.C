@@ -29,7 +29,8 @@ SensitivityFilterTop88::validParams()
 
 SensitivityFilterTop88::SensitivityFilterTop88(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _filter(getUserObject<RadialAverage>("filter_UO").getAverage()),
+    _filter(getUserObject<RadialAverageTop88>("filter_UO").getAverage()),
+    _filter_weight_sum(getUserObject<RadialAverageTop88>("filter_UO").getWeightSum()),
     _density_sensitivity(writableVariable("density_sensitivity")),
     _design_density_name(getParam<VariableName>("design_density")),
     _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
@@ -41,29 +42,42 @@ SensitivityFilterTop88::execute()
 {
   // Find the current element in the filter
   auto filter_iter = _filter.find(_current_elem->id());
+  auto filter_weight_sum_iter = _filter_weight_sum.find(_current_elem->id());
 
   // Assert the element is found in the filter
-  mooseAssert(filter_iter != _filter.end(),
-              "An element could not be found in the filter. Check that a RadialAverage user object "
-              "has run before this object.");
+  mooseAssert(
+      filter_iter != _filter.end(),
+      "An element could not be found in the filter. Check that a RadialAverageTop88 user object "
+      "has run before this object.");
 
   // Get the quadrature point values from the filter
   std::vector<Real> qp_vals = filter_iter->second;
+  std::vector<Real> qp_weight_vals = filter_weight_sum_iter->second;
+
+  // for (Real i: qp_weight_vals)
+  //   _console << i << "\n" << std::flush;
+  //_console << qp_weight_vals[0] << "\n" << std::flush;
 
   // Initialize the total elemental sensitivity value
   Real den_sense_val = 0;
-  
+  Real weight_sum_val = 0;
+
   // Get the pseudo density for the current element
   Real x = _design_density.getElementalValue(_current_elem);
 
   // Compute the total elemental sensitivity value by summing over all quadrature points
   for (unsigned int qp = 0; qp < _qrule->n_points(); qp++)
+  {
     den_sense_val += qp_vals[qp] * _JxW[qp];
+    weight_sum_val += qp_weight_vals[qp] * _JxW[qp];
+  }
 
-  den_sense_val = (den_sense_val)/(_current_elem_volume*x);
+  den_sense_val = (den_sense_val) / (_current_elem_volume * x * weight_sum_val);
   /*_console << "current el: " << _current_elem->id() << "\n" << std::flush;
   _console << "current vol: " << _current_elem_volume << "\n" << std::flush;
-  _console << "current dens: " << _design_density.getElementalValue(_current_elem) << "\n" << std::flush;*/
+  _console << "current dens: " << _design_density.getElementalValue(_current_elem) << "\n" <<
+  std::flush;*/
+  //_console << "current weight sum: " << weight_sum_val << "\n" << std::flush;
 
   //_design_density.getElementalValue(
 

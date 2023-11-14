@@ -69,6 +69,9 @@ public:
   using Result = std::map<dof_id_type, std::vector<Real>>;
   const Result & getAverage() const { return _average; }
 
+  using Weight = std::map<dof_id_type, std::vector<Real>>;
+  const Weight & getWeightSum() const { return _weight_sum; }
+
 protected:
   void updateCommunicationLists();
 
@@ -94,6 +97,9 @@ protected:
 
   /// average result
   Result _average;
+
+  /// weight sum
+  Weight _weight_sum;
 
   using KDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
       nanoflann::L2_Simple_Adaptor<Real, PointListAdaptor<QPData>>,

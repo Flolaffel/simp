@@ -10,7 +10,7 @@
 #pragma once
 
 #include "ElementUserObject.h"
-#include "RadialAverage.h"
+#include "RadialAverageTop88.h"
 
 /**
  * Element user object that filters the objective function sensitivities via a radial average user
@@ -31,7 +31,9 @@ public:
 
 protected:
   /// Radial average user object
-  const RadialAverage::Result & _filter;
+  const RadialAverageTop88::Result & _filter;
+  /// Radial average user object
+  const RadialAverageTop88::Weight & _filter_weight_sum;
   /// Sensitivity with respect to density
   MooseWritableVariable & _density_sensitivity;
   /// Pseudo-density variable name

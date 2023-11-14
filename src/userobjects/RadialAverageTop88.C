@@ -111,6 +111,12 @@ RadialAverageTop88::execute()
     _average.insert(std::make_pair(id, std::vector<Real>(_qrule->n_points())));
   else
     i->second.resize(_qrule->n_points());
+
+  auto j = _weight_sum.find(id);
+  if (j == _weight_sum.end())
+    _weight_sum.insert(std::make_pair(id, std::vector<Real>(_qrule->n_points())));
+  else
+    j->second.resize(_qrule->n_points());
 }
 
 void
@@ -207,6 +213,7 @@ RadialAverageTop88::threadJoin(const UserObject & y)
   const RadialAverageTop88 & uo = static_cast<const RadialAverageTop88 &>(y);
   _qp_data.insert(_qp_data.begin(), uo._qp_data.begin(), uo._qp_data.end());
   _average.insert(uo._average.begin(), uo._average.end());
+  _weight_sum.insert(uo._weight_sum.begin(), uo._weight_sum.end());
 }
 
 void
