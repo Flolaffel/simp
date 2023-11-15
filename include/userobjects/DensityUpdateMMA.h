@@ -35,10 +35,14 @@ protected:
   const MooseMesh & _mesh;
   /// The name of the pseudo-density variable
   const VariableName _design_density_name;
+  /// The name of the old pseudo-density variable
+  const VariableName _old_design_density_name;
   /// The elasticity compliance sensitivity name
   const VariableName _density_sensitivity_name;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
+  /// The old pseudo-density variable
+  MooseWritableVariable * _old_design_density;
   /// The filtered density sensitivity variable
   const MooseWritableVariable * _density_sensitivity;
   /// The volume fraction to be enforced
@@ -47,13 +51,18 @@ protected:
 private:
   struct ElementData
   {
-    Real old_density;
+    Real old_density1;
+    Real old_density2;
     Real sensitivity;
     Real volume;
     Real new_density;
     ElementData() = default;
-    ElementData(Real dens, Real sens, Real vol, Real filt_dens)
-      : old_density(dens), sensitivity(sens), volume(vol), new_density(filt_dens)
+    ElementData(Real dens1, Real dens2, Real sens, Real vol, Real filt_dens)
+      : old_density1(dens1),
+        old_density2(dens2),
+        sensitivity(sens),
+        volume(vol),
+        new_density(filt_dens)
     {
     }
   };
@@ -66,7 +75,7 @@ private:
   /**
    * Performs the optimality criterion loop (bisection)
    */
-  void performOptimCritLoop();
+  void performMMALoop();
 
   Real computeUpdatedDensity(Real current_density, Real dc, Real lmid);
 
