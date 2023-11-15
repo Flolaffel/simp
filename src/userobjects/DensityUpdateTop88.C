@@ -102,7 +102,6 @@ DensityUpdateTop88::gatherElementData()
 void
 DensityUpdateTop88::performOptimCritLoop()
 {
-  _console << "DensityUpdate\n" << std::flush;
   // Initialize the lower and upper bounds for the bisection method
   Real l1 = _lower_bound;
   Real l2 = _upper_bound;
@@ -149,12 +148,12 @@ DensityUpdateTop88::computeUpdatedDensity(Real current_density, Real dc, Real lm
   Real move = 0.2;
   // Compute the updated density based on the current density, the sensitivity, and the midpoint
   // value
-  Real updated_density = std::max(
-      0.0,
-      std::max(current_density-move,
-               std::min(1.0,
-                        std::min(current_density + move,
-                                 current_density * std::sqrt(-dc / lmid)))));
+  Real updated_density =
+      std::max(0.0,
+               std::max(current_density - move,
+                        std::min(1.0,
+                                 std::min(current_density + move,
+                                          current_density * std::sqrt(-dc / lmid)))));
   // Return the updated density
   return updated_density;
 }

@@ -109,7 +109,6 @@ DensityUpdateMMA::gatherElementData()
 void
 DensityUpdateMMA::performMMALoop()
 {
-  _console << "DensityUpdate\n" << std::flush;
   // Initialize the lower and upper bounds for the bisection method
   Real l1 = _lower_bound;
   Real l2 = _upper_bound;
