@@ -1,13 +1,13 @@
-# Änderungen: 
+# Änderungen:
 # - DensityUpdate move
 # - DensityUpdate l2 upper bound
 # - DensityUpdate max min ...
 
-nx = 60
-ny = 20
+nx = 30
+ny = 10
 p = 3
 vol_frac = 0.5
-#filter_radius = 1.5
+filter_radius = 1.5
 E0 = 1
 Emin = 1e-9
 
@@ -30,13 +30,13 @@ Emin = 1e-9
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '60 0 0'
+    coord = '30 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 20 0'
+    coord = '0 10 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -45,7 +45,6 @@ Emin = 1e-9
 []
 
 [AuxVariables]
-
   [Emin]
     family = MONOMIAL
     order = CONSTANT
@@ -64,12 +63,31 @@ Emin = 1e-9
   [Dc]
     family = MONOMIAL
     order = CONSTANT
-    #initial_condition = -1.0
+  []
+  [rho_old1]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
+  []
+  [rho_old2]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
   []
   [rho]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = ${vol_frac}
+  []
+  [low]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = 1
+  []
+  [upp]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = 1
   []
 []
 
@@ -94,21 +112,14 @@ Emin = 1e-9
     boundary = left
     value = 0.0
   []
-  #[load]
-  #  type = NeumannBC
-  #  variable = disp_x
-  #  boundary = push
-  #  value = -1
-  #[]
 []
 
 [NodalKernels]
   [pull]
-    type = NodalGravity
+    type = ConstantRate
     variable = disp_y
     boundary = push
-    gravity_value = -1
-    mass = 1
+    rate = -1
   []
 []
 
@@ -135,10 +146,13 @@ Emin = 1e-9
     type = ComputeLinearElasticStress
   []
   [dc]
-    type = ComplianceSensitivity
+    type = AnalyticComplianceSensitivity
     design_density = rho
     youngs_modulus = E_phys
     incremental = false
+    E0 = ${E0}
+    Emin = ${Emin}
+    p = ${p}
   []
   [filter_mat]
     type = ParsedMaterial
@@ -155,18 +169,18 @@ Emin = 1e-9
     full = true
   []
 []
-[UserObjects]  
+
+[UserObjects]
   [update]
     type = DensityUpdateTop88
     density_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
     execute_on = TIMESTEP_END
-    bisection_upper_bound = 1e9
   []
   [rad_avg]
-    type = RadialAverage
-    radius = 1.5
+    type = RadialAverageTop88
+    radius = ${filter_radius}
     weights = linear
     prop_name = filter_mat
     execute_on = TIMESTEP_END
@@ -194,7 +208,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 94
+  num_steps = 100
 []
 
 [Outputs]
@@ -215,7 +229,7 @@ Emin = 1e-9
   []
   [n_el]
     type = ConstantPostprocessor
-    value = ${fparse nx*ny}
+    value = '${fparse nx*ny}'
   []
   [stop_vol]
     type = ParsedPostprocessor
@@ -235,3 +249,8 @@ Emin = 1e-9
     execute_on = 'initial timestep_end'
   []
 []
+
+#[Debug]
+#  show_material_props = true
+#  show_execution_order = ALWAYS
+#[]
