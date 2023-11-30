@@ -7,24 +7,26 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "DensityUpdateDensFilter.h"
+#include "DensityUpdateDensityFilter.h"
 #include <algorithm>
-#include "Output.h"
 
-registerMooseObject("OptimizationApp", DensityUpdateDensFilter);
+registerMooseObject("OptimizationApp", DensityUpdateDensityFilter);
 
 InputParameters
-DensityUpdateDensFilter::validParams()
+DensityUpdateDensityFilter::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
   params.addClassDescription(
       "Compute updated densities based on sensitivities using an optimality criteria method to "
       "keep the volume constraint satisified.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
-  params.addRequiredParam<VariableName>("density_sensitivity",
-                                        "Name of the density_sensitivity variable.");
+  params.addRequiredParam<VariableName>("compliance_sensitivity",
+                                        "Name of the compliance_sensitivity variable.");
+  params.addRequiredParam<MeshGeneratorName>(
+      "mesh_generator",
+      "Name of the mesh generator to be used to retrieve control drums information.");
   params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
-  params.addRequiredParam<UserObjectName>("filter_UO", "Radial Average user object");
+  params.addRequiredParam<Real>("radius", "Cut-off radius for the averaging");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
   params.addParam<Real>("bisection_upper_bound", 1e16, "Upper bound for the bisection algorithm.");
   params.addParam<int>(
@@ -37,15 +39,21 @@ DensityUpdateDensFilter::validParams()
   return params;
 }
 
-DensityUpdateDensFilter::DensityUpdateDensFilter(const InputParameters & parameters)
+DensityUpdateDensityFilter::DensityUpdateDensityFilter(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _mesh(_subproblem.mesh()),
-    _density_sensitivity_name(getParam<VariableName>("density_sensitivity")),
+    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator")),
+    _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _design_density(&writableVariable("design_density")),
-    _density_sensitivity(&_subproblem.getStandardVariable(_tid, _density_sensitivity_name)),
+    _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
     _volume_fraction(getParam<Real>("volume_fraction")),
-    _filter(getUserObject<RadialAverageTop88>("filter_UO").getAverage()),
-    _filter_weight_sum(getUserObject<RadialAverageTop88>("filter_UO").getWeightSum()),
+    _radius(getParam<Real>("radius")),
+    _nx(getMeshProperty<unsigned int>("num_elements_x", _mesh_generator)),
+    _ny(getMeshProperty<unsigned int>("num_elements_y", _mesh_generator)),
+    _xmin(getMeshProperty<Real>("xmin", _mesh_generator)),
+    _xmax(getMeshProperty<Real>("xmax", _mesh_generator)),
+    _ymin(getMeshProperty<Real>("ymin", _mesh_generator)),
+    _ymax(getMeshProperty<Real>("ymax", _mesh_generator)),
     _lower_bound(getParam<Real>("bisection_lower_bound")),
     _upper_bound(getParam<Real>("bisection_upper_bound"))
 {
@@ -54,14 +62,15 @@ DensityUpdateDensFilter::DensityUpdateDensFilter(const InputParameters & paramet
 }
 
 void
-DensityUpdateDensFilter::initialize()
+DensityUpdateDensityFilter::initialize()
 {
   gatherElementData();
+  prepareFilter();
   performOptimCritLoop();
 }
 
 void
-DensityUpdateDensFilter::execute()
+DensityUpdateDensityFilter::execute()
 {
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
@@ -79,7 +88,7 @@ DensityUpdateDensFilter::execute()
 }
 
 void
-DensityUpdateDensFilter::gatherElementData()
+DensityUpdateDensityFilter::gatherElementData()
 {
   _elem_data_map.clear();
   _total_allowable_volume = 0;
@@ -90,7 +99,7 @@ DensityUpdateDensFilter::gatherElementData()
       dof_id_type elem_id = elem->id();
       ElementData data = ElementData(
           dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-          dynamic_cast<const MooseVariableFE<Real> *>(_density_sensitivity)
+          dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
               ->getElementalValue(elem),
           elem->volume(),
           0);
@@ -103,7 +112,58 @@ DensityUpdateDensFilter::gatherElementData()
 }
 
 void
-DensityUpdateDensFilter::performOptimCritLoop()
+DensityUpdateDensityFilter::prepareFilter()
+{
+  // Only eligibale for elemente size of 1 mm
+  int upp_r = ceil(_radius);
+  int size = _nx * _ny * std::pow((2 * (upp_r - 1) + 1), 2);
+  std::vector<int> iH(size, 1);
+  std::vector<int> jH(size, 1);
+  std::vector<Real> sH(size, 0);
+  int counter = 0;
+  for (unsigned int i = 0; i < _ny; i++)
+  {
+    for (unsigned int j = 0; j < _nx; j++)
+    {
+      int e1 = i * _nx + j;
+      for (int k = std::max<int>(i - (upp_r - 1), 0); k < std::min<int>(i + upp_r, _ny); k++)
+      {
+        for (int l = std::max<int>(j - (upp_r - 1), 0); l < std::min<int>(j + upp_r, _nx); l++)
+        {
+          int e2 = k * _nx + l;
+          iH[counter] = e1;
+          jH[counter] = e2;
+          sH[counter] = std::max<double>(0,
+                                         _radius - std::sqrt(std::pow(std::abs<int>(i - k), 2) +
+                                                             std::pow(std::abs<int>(j - l), 2)));
+          counter++;
+        }
+      }
+    }
+  }
+
+  // Fill _H and with values sH at locations iH,jH
+  _H.resize(_nx * _ny, std::vector<Real>(_nx * _ny, 0));
+  _Hs.resize(_nx * _ny);
+  for (int i = 0; i < counter; i++)
+  {
+    _H[iH[i]][jH[i]] = sH[i];
+  }
+
+  // Fill _Hs with the column sums of _H
+  for (unsigned int i = 0; i < _H.size(); i++)
+  {
+    Real column_sum = 0;
+    for (unsigned int j = 0; j < _H[i].size(); j++)
+    {
+      column_sum += _H[i][j];
+    }
+    _Hs[i] = column_sum;
+  }
+}
+
+void
+DensityUpdateDensityFilter::performOptimCritLoop()
 {
   // Initialize the lower and upper bounds for the bisection method
   Real l1 = _lower_bound;
@@ -115,6 +175,8 @@ DensityUpdateDensFilter::performOptimCritLoop()
     // Compute the midpoint between l1 and l2
     Real lmid = 0.5 * (l2 + l1);
 
+    // Initialize a vector holding the new densities
+    std::vector<Real> x(_nx * _ny);
     // Initialize the current total volume
     Real curr_total_volume = 0;
     // Loop over all elements
@@ -122,42 +184,23 @@ DensityUpdateDensFilter::performOptimCritLoop()
     {
       // Compute the updated density for the current element
       Real new_density = computeUpdatedDensity(elem_data.old_density, elem_data.sensitivity, lmid);
+      // Add density to vector
+      x[id] = new_density;
+    }
 
-      // Filter the new density to make it the physical density
-      // Find the current element in the filter
-      auto filter_iter = _filter.find(id);
-      auto filter_weight_sum_iter = _filter_weight_sum.find(id);
-
-      // Assert the element is found in the filter
-      mooseAssert(filter_iter != _filter.end(),
-                  "An element could not be found in the filter. Check that a RadialAverageTop88 "
-                  "user object "
-                  "has run before this object.");
-
-      // Get the quadrature point values from the filter
-      std::vector<Real> qp_vals = filter_iter->second;
-      std::vector<Real> qp_weight_vals = filter_weight_sum_iter->second;
-
-      // Initialize the total elemental density value
-      Real dens_val = 0;
-      Real weight_sum_val = 0;
-
-      // Get the pseudo density for the current element
-      Real x = elem_data.old_density;
-
-      // Compute the total elemental sensitivity value by summing over all quadrature points
-      for (unsigned int qp = 0; qp < _qrule->n_points(); qp++)
+    // Filter the new densities
+    for (auto && [id, elem_data] : _elem_data_map)
+    {
+      Real filt_density = 0;
+      for (unsigned int j = 0; j < _nx * _ny; j++)
       {
-        dens_val += qp_vals[qp] * _JxW[qp];
-        weight_sum_val += qp_weight_vals[qp] * _JxW[qp];
+        filt_density += _H[id][j] * x[j];
       }
-
-      dens_val = dens_val / weight_sum_val;
-
+      filt_density /= _Hs[id];
       // Update the current filtered density for the current element
-      elem_data.new_density = new_density;
+      elem_data.new_density = filt_density;
       // Update the current total volume
-      curr_total_volume += new_density * elem_data.volume;
+      curr_total_volume += filt_density * elem_data.volume;
     }
 
     // Sum the current total volume across all processors
@@ -177,7 +220,7 @@ DensityUpdateDensFilter::performOptimCritLoop()
 
 // Method to compute the updated density for an element
 Real
-DensityUpdateDensFilter::computeUpdatedDensity(Real current_density, Real dc, Real lmid)
+DensityUpdateDensityFilter::computeUpdatedDensity(Real current_density, Real dc, Real lmid)
 {
   // Define the maximum allowable change in density
   Real move = 0.2;

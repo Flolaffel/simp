@@ -10,7 +10,7 @@
 #pragma once
 
 #include "ElementUserObject.h"
-#include "RadialAverageTop88.h"
+#include "MeshMetaDataInterface.h"
 #include "MooseTypes.h"
 
 /**
@@ -18,12 +18,12 @@
  * constraint.
  * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
  */
-class DensityUpdateDensFilter : public ElementUserObject
+class DensityUpdateDensityFilter : public ElementUserObject
 {
 public:
   static InputParameters validParams();
 
-  DensityUpdateDensFilter(const InputParameters & parameters);
+  DensityUpdateDensityFilter(const InputParameters & parameters);
 
   virtual void initialize() override;
   virtual void timestepSetup() override{};
@@ -34,20 +34,32 @@ public:
 protected:
   /// The system mesh
   const MooseMesh & _mesh;
+  /// Name of the mesh generator to get MeshMetaData from
+  const MeshGeneratorName _mesh_generator;
   /// The name of the pseudo-density variable
   const VariableName _design_density_name;
   /// The elasticity compliance sensitivity name
-  const VariableName _density_sensitivity_name;
+  const VariableName _compliance_sensitivity_name;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
-  /// The filtered density sensitivity variable
-  const MooseWritableVariable * _density_sensitivity;
+  /// The filtered compliance sensitivity variable
+  const MooseWritableVariable * _compliance_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
-  /// Radial average user object
-  const RadialAverageTop88::Result & _filter;
-  /// Radial average user object
-  const RadialAverageTop88::Weight & _filter_weight_sum;
+  /// Cut-off radius for filtering
+  const Real _radius;
+  /// Number of elements in X direction
+  const unsigned int _nx;
+  /// Number of elements in Y direction
+  const unsigned int _ny;
+  /// Lower X Coordinate of the generated mesh
+  const Real _xmin;
+  /// Upper X Coordinate of the generated mesh
+  const Real _xmax;
+  /// Lower Y Coordinate of the generated mesh
+  const Real _ymin;
+  /// Upper Y Coordinate of the generated mesh
+  const Real _ymax;
 
 private:
   struct ElementData
