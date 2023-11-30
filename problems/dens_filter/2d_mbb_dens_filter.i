@@ -3,8 +3,8 @@
 # - DensityUpdate l2 upper bound
 # - DensityUpdate max min ...
 
-nx = 30
-ny = 10
+nx = 60
+ny = 20
 p = 3
 vol_frac = 0.5
 filter_radius = 1.5
@@ -30,13 +30,13 @@ Emin = 1e-9
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '30 0 0'
+    coord = '60 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 10 0'
+    coord = '0 20 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -64,30 +64,24 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
   []
-  [rho_old1]
+  [DV]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = ${vol_frac}
-  []
-  [rho_old2]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = ${vol_frac}
+    initial_condition = 1
   []
   [rho]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = ${vol_frac}
   []
-  [low]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = 1
-  []
-  [upp]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = 1
+[]
+
+[AuxKernels]
+  [copy_compliance_sens]
+    type = MaterialRealAux
+    property = sensitivity
+    variable = Dc
+    execute_on = TIMESTEP_END
   []
 []
 
@@ -171,25 +165,21 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateTop88
-    density_sensitivity = Dc
+    type = DensityUpdateDensityFilter
+    compliance_sensitivity = Dc
     design_density = rho
+    mesh_generator = MeshGenerator
     volume_fraction = ${vol_frac}
-    execute_on = TIMESTEP_END
-  []
-  [rad_avg]
-    type = RadialAverageTop88
     radius = ${filter_radius}
-    weights = linear
-    prop_name = filter_mat
     execute_on = TIMESTEP_END
-    force_preaux = true
   []
+  # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
   [calc_sense]
-    type = SensitivityFilterTop88
-    density_sensitivity = Dc
-    design_density = rho
-    filter_UO = rad_avg
+    type = SensitivityUpdateDensityFilter
+    compliance_sensitivity = Dc
+    volume_sensitivity = DV
+    radius = ${filter_radius}
+    mesh_generator = MeshGenerator
     execute_on = TIMESTEP_END
     force_postaux = true
   []
@@ -207,7 +197,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 1
+  num_steps = 130
 []
 
 [Outputs]
@@ -250,6 +240,6 @@ Emin = 1e-9
 []
 
 [Debug]
-  show_material_props = true
+  #show_material_props = true
   #show_execution_order = ALWAYS
 []
