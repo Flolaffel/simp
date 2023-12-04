@@ -1,4 +1,4 @@
-# Änderungen: 
+# Änderungen:
 # - DensityUpdate move
 # - DensityUpdate l2 upper bound
 # - DensityUpdate max min ...
@@ -64,7 +64,12 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
   []
-  [rho_old]
+  [rho_old1]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
+  []
+  [rho_old2]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = ${vol_frac}
@@ -73,6 +78,16 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
     initial_condition = ${vol_frac}
+  []
+  [low]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = 1
+  []
+  [upp]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = 1
   []
 []
 
@@ -155,15 +170,17 @@ Emin = 1e-9
   []
 []
 
-[UserObjects]  
+[UserObjects]
   [update]
     type = DensityUpdateMMA
     density_sensitivity = Dc
     design_density = rho
-    old_design_density = rho_old
+    old_design_density1 = rho_old1
+    old_design_density2 = rho_old2
     volume_fraction = ${vol_frac}
     execute_on = TIMESTEP_END
-    bisection_upper_bound = 1e9
+    mma_lower_asymptotes = low
+    mma_upper_asymptotes = upp
   []
   [rad_avg]
     type = RadialAverageTop88
@@ -181,11 +198,11 @@ Emin = 1e-9
     execute_on = TIMESTEP_END
     force_postaux = true
   []
-  [opt_conv]
-    type = Terminator
-    expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
-    execute_on = TIMESTEP_END
-  []
+  #[opt_conv]
+  #  type = Terminator
+  #  expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
+  #  execute_on = TIMESTEP_END
+  #[]
 []
 
 [Executioner]
@@ -195,7 +212,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 94
+  num_steps = 50
 []
 
 [Outputs]
@@ -216,7 +233,7 @@ Emin = 1e-9
   []
   [n_el]
     type = ConstantPostprocessor
-    value = ${fparse nx*ny}
+    value = '${fparse nx*ny}'
   []
   [stop_vol]
     type = ParsedPostprocessor
@@ -235,4 +252,9 @@ Emin = 1e-9
     take_absolute_value = true
     execute_on = 'initial timestep_end'
   []
+[]
+
+[Debug]
+  #  show_material_props = true
+  #show_execution_order = ALWAYS
 []
