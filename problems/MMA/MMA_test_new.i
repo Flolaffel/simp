@@ -212,7 +212,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 10
+  num_steps = 100
 []
 
 [Outputs]
