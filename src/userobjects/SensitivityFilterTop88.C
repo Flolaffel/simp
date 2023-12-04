@@ -72,7 +72,7 @@ SensitivityFilterTop88::execute()
     weight_sum_val += qp_weight_vals[qp] * _JxW[qp];
   }
 
-  den_sense_val = (den_sense_val) / (_current_elem_volume * std::max(0.001, x) * weight_sum_val);
+  den_sense_val = (den_sense_val) / (_current_elem_volume * std::max(0.001, x));
   /*_console << "current el: " << _current_elem->id() << "\n" << std::flush;
   _console << "current vol: " << _current_elem_volume << "\n" << std::flush;
   _console << "current dens: " << _design_density.getElementalValue(_current_elem) << "\n" <<
