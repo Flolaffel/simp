@@ -128,7 +128,7 @@ private:
                                   Real c,
                                   Real d);
 
-  std::vector<Real> AbsVector(std::vector<Real>);
+  std::vector<Real> AbsVec(std::vector<Real>);
   Real NormVector(std::vector<Real>);
   std::valarray<Real> maxValArray(std::valarray<Real> val1, std::valarray<Real> val2);
   std::valarray<Real> minValArray(std::valarray<Real> val1, std::valarray<Real> val2);

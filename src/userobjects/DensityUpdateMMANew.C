@@ -132,39 +132,28 @@ void
 DensityUpdateMMANew::performMMALoop()
 {
   int m = 1;
-  int n = 0;
-  // Loop over all elements
-  for (auto && [id, elem_data] : _elem_data_map)
-  {
-    n++;
-  }
+  int n = _elem_data_map.size();
+
+  // Valarray variables of size n
+  std::valarray<Real> xval(n), xold1(n), xold2(n), low(n), upp(n), df0dx(n), xmin(n), xmax(1, n);
+  std::valarray<Real> dfdx(1.0 / (_volume_fraction * n), n);
+
   // Scalar constants for the case of one constraint (m=1)
   Real a0 = 1;
   Real a = 0;
   Real c_MMA = 10000;
   Real d = 0;
-
-  std::valarray<Real> xval(n);
-  std::valarray<Real> xold1(n);
-  std::valarray<Real> xold2(n);
-  std::valarray<Real> low(n);
-  std::valarray<Real> upp(n);
-  std::valarray<Real> df0dx(n);
-  std::valarray<Real> xmin(n);
-  std::valarray<Real> xmax(1, n);
-  std::valarray<Real> dfdx(1.0 / (_volume_fraction * n), n);
   Real fval = 0;
-  int i = 0;
+
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    xval[i] = elem_data.current_density;
-    xold1[i] = elem_data.old_density1;
-    xold2[i] = elem_data.old_density2;
-    df0dx[i] = elem_data.sensitivity;
-    low[i] = elem_data.lower;
-    upp[i] = elem_data.upper;
+    xval[id] = elem_data.current_density;
+    xold1[id] = elem_data.old_density1;
+    xold2[id] = elem_data.old_density2;
+    df0dx[id] = elem_data.sensitivity;
+    low[id] = elem_data.lower;
+    upp[id] = elem_data.upper;
     fval += elem_data.current_density;
-    i++;
   }
   fval /= _volume_fraction * n;
   fval -= 1;
@@ -184,7 +173,6 @@ DensityUpdateMMANew::performMMALoop()
 
   // Calculation of the asymptotes low and upp
   std::valarray<Real> zzz;
-  zzz = (xval - xold1) * (xold1 - xold2);
   if (_t_step <= 2)
   {
     low = xval - asyinit * (xmax - xmin);
@@ -197,9 +185,9 @@ DensityUpdateMMANew::performMMALoop()
     for (int i = 0; i < n; i++)
     {
       if (zzz[i] > 0)
-        factor = asyincr;
+        factor[i] = asyincr;
       else
-        factor = asydecr;
+        factor[i] = asydecr;
     }
     low = xval - factor * (xold1 - low);
     upp = xval + factor * (upp - xold1);
@@ -255,7 +243,7 @@ DensityUpdateMMANew::performMMALoop()
   std::valarray<Real> P, Q, PQ;
   P = maxValArray(dfdx, zeron);
   Q = maxValArray(-dfdx, zeron);
-  PQ = 0.001 * (P + Q) + raa0 * eeem * xmamiinv;
+  PQ = 0.001 * (P + Q) + raa0 * eeem[0] * xmamiinv;
   P = P + PQ;
   Q = Q + PQ;
   P = P * ux2;
@@ -263,34 +251,25 @@ DensityUpdateMMANew::performMMALoop()
   Real b = 0;
   for (int i = 0; i < n; i++)
   {
-    b += P[i] * uxinv[i] + Q[i] * xlinv[i] - fval;
+    b += P[i] * uxinv[i] + Q[i] * xlinv[i];
     // low und upp ändern sich nicht, da xval sich nicht ändert
-    // std::cout << low[i] << " | " << upp[i] << " | " << alpha[i] << " | " << beta[i] << " | "
-    //           << p0[i] << " | " << q0[i] << " | " << P[i] << " | " << Q[i] << std::endl;
+    // std::cout << i << "4: " << low[i] << " | " << upp[i] << " | " << alpha[i] << " | " << beta[i]
+    //           << " | " << p0[i] << " | " << q0[i] << " | " << P[i] << " | " << Q[i] << " | "
+    //           << uxinv[i] << " | " << xlinv[i] << " | " << b << std::endl;
   }
-
+  b -= fval;
+  // std::cout << "1: " << b << " | " << fval << std::endl;
   // Solving the subproblem by a primal-dual Newton method
   std::valarray<Real> new_density =
       MMASubSolve(m, n, epsimin, low, upp, alpha, beta, p0, q0, P, Q, a0, a, b, c_MMA, d);
-  Real curr_total_volume = 0;
-  int j = 0;
+
   for (auto && [id, elem_data] : _elem_data_map)
   {
     // Update the current filtered density for the current element
-    elem_data.new_density = new_density[j];
-    // std::cout << elem_data.new_density << std::endl;
-    elem_data.new_lower = low[j];
-    elem_data.new_upper = upp[j];
-    // Update the current total volume
-    curr_total_volume += new_density[j] * elem_data.volume;
-
-    j++;
+    elem_data.new_density = new_density[id];
+    elem_data.new_lower = low[id];
+    elem_data.new_upper = upp[id];
   }
-
-  // Sum the current total volume across all processors
-  _communicator.sum(curr_total_volume);
-
-  //_console << "2" << n << "\n" << std::flush;*/
 }
 
 // Method to solve the MMA subproblem by a primal-dual Newton method
@@ -328,8 +307,6 @@ DensityUpdateMMANew::MMASubSolve(int m,
   Real mu = std::max(eem, 0.5 * c);
   Real zet = 1.0;
   Real s = eem;
-  int itera = 0;
-  int while_count = 0;
   while (epsi > epsimin)
   {
     epsvecn = epsi * een;
@@ -359,36 +336,29 @@ DensityUpdateMMANew::MMASubSolve(int m,
     Real res = lam * s - epsvecm;
 
     std::vector<Real> residu1;
-    // residu1.reserve(rex.size() + 2);
+    residu1.reserve(rex.size() + 2);
     residu1.assign(std::begin(rex), std::end(rex));
     residu1.push_back(rey);
     residu1.push_back(rez);
 
-    std::vector<Real> residu2;
-    // residu2.reserve(4 + rexsi.size() + reeta.size());
-    residu2.assign(std::begin(rexsi), std::end(rexsi));
+    std::vector<Real> residu2{relam};
+    residu2.reserve(residu2.size() + rexsi.size() + reeta.size() + 3);
+    residu2.insert(std::end(residu2), std::begin(rexsi), std::end(rexsi));
     residu2.insert(std::end(residu2), std::begin(reeta), std::end(reeta));
-    residu2.insert(std::end(residu2), {relam, remu, rezet, res});
+    residu2.insert(std::end(residu2), {remu, rezet, res});
 
     std::vector<Real> residu;
-    // residu.reserve(residu1.size() + residu2.size());
+    residu.reserve(residu1.size() + residu2.size());
     residu.assign(std::begin(residu1), std::end(residu1));
     residu.insert(std::end(residu), std::begin(residu2), std::end(residu2));
 
     Real residunorm = NormVector(residu);
-    std::vector<Real> residuabs = AbsVector(residu);
+    std::vector<Real> residuabs = AbsVec(residu);
     Real residumax = *max_element(std::begin(residuabs), std::end(residuabs));
-
-    // for (int i = 0; i < n; i++)
-    // {
-    //   std::cout << residu[i] << std::endl;
-    // }
-
     int ittt = 0;
     while (residumax > 0.9 * epsi && ittt < 200)
     {
       ittt++;
-      itera++;
       ux1 = upp - x;
       xl1 = x - low;
       ux2 = ux1 * ux1;
@@ -454,35 +424,31 @@ DensityUpdateMMANew::MMASubSolve(int m,
       Real ds = -s + epsvecm / lam - (s * dlam) / lam;
 
       std::vector<Real> xx{y, z, lam};
-      // xx.reserve(xx.size() + xsi.size() + eta.size() + 3);
+      xx.reserve(xx.size() + xsi.size() + eta.size() + 3);
       xx.insert(std::end(xx), std::begin(xsi), std::end(xsi));
       xx.insert(std::end(xx), std::begin(eta), std::end(eta));
       xx.insert(std::end(xx), {mu, zet, s});
 
       std::vector<Real> dxx{dy, dz, dlam};
-      // dxx.reserve(dxx.size() + xsi.size() + eta.size() + 3);
+      dxx.reserve(dxx.size() + xsi.size() + eta.size() + 3);
       dxx.insert(std::end(dxx), std::begin(dxsi), std::end(dxsi));
       dxx.insert(std::end(dxx), std::begin(deta), std::end(deta));
       dxx.insert(std::end(dxx), {dmu, dzet, ds});
 
-      std::vector<Real> stepxx;
-      // stepxx.reserve(xx.size());
+      std::vector<Real> stepxx(xx.size());
       for (unsigned int i = 0; i < xx.size(); i++)
       {
-        stepxx.push_back(-1.01 * dxx[i] / xx[i]);
+        stepxx[i] = -1.01 * dxx[i] / xx[i];
       }
-      std::vector<Real> stepalpha, stepbeta;
-      // stepalpha.reserve(xx.size());
-      // stepbeta.reserve(xx.size());
+      std::vector<Real> stepalpha(n), stepbeta(n);
       for (int i = 0; i < n; i++)
       {
-        stepalpha.push_back(-1.01 * dx[i] / (x[i] - alpha[i]));
-        stepbeta.push_back(1.01 * dx[i] / (beta[i] - x[i]));
-        // std::cout << stepbeta[i] << std::endl;
+        stepalpha[i] = -1.01 * dx[i] / (x[i] - alpha[i]);
+        stepbeta[i] = 1.01 * dx[i] / (beta[i] - x[i]);
       }
-      Real stmxx = *max_element(std::begin(stepxx), std::end(stepxx));
-      Real stmalpha = *max_element(std::begin(stepalpha), std::end(stepalpha));
-      Real stmbeta = *max_element(std::begin(stepbeta), std::end(stepbeta));
+      Real stmxx = *std::max_element(std::begin(stepxx), std::end(stepxx));
+      Real stmalpha = *std::max_element(std::begin(stepalpha), std::end(stepalpha));
+      Real stmbeta = *std::max_element(std::begin(stepbeta), std::end(stepbeta));
       Real stmalbe = std::max(stmalpha, stmbeta);
       Real stmalbexx = std::max(stmalbe, stmxx);
       Real stminv = std::max(stmalbexx, 1.0);
@@ -500,7 +466,6 @@ DensityUpdateMMANew::MMASubSolve(int m,
 
       int itto = 0;
       Real resinew = 2 * residunorm;
-      // std::cout << resinew << " | " << residunorm << std::endl;
       while (resinew > residunorm && itto < 50)
       {
         itto++;
@@ -539,7 +504,6 @@ DensityUpdateMMANew::MMASubSolve(int m,
         rey = c + d * y - mu - lam;
         rez = a0 - zet - a * lam;
         relam = gvec - a * z - y + s - b;
-        std::cout << b << std::endl;
         rexsi = xsi * (x - alpha) - epsvecn;
         reeta = eta * (beta - x) - epsvecn;
         remu = mu * y - epsvecm;
@@ -550,19 +514,20 @@ DensityUpdateMMANew::MMASubSolve(int m,
         residu1.push_back(rey);
         residu1.push_back(rez);
 
-        residu2.assign(std::begin(rexsi), std::end(rexsi));
+        residu2.assign(1, relam);
+        residu2.insert(std::end(residu2), std::begin(rexsi), std::end(rexsi));
         residu2.insert(std::end(residu2), std::begin(reeta), std::end(reeta));
-        residu2.insert(std::end(residu2), {relam, remu, rezet, res});
+        residu2.insert(std::end(residu2), {remu, rezet, res});
 
         residu.assign(std::begin(residu1), std::end(residu1));
         residu.insert(std::end(residu), std::begin(residu2), std::end(residu2));
+
         resinew = NormVector(residu);
         steg /= 2;
       }
       residunorm = resinew;
-      std::vector<Real> residuabs = AbsVector(residu);
-      residumax = *max_element(std::begin(residuabs), std::end(residuabs));
-      steg *= 2;
+      std::vector<Real> residuabs = AbsVec(residu);
+      residumax = *std::max_element(std::begin(residuabs), std::end(residuabs));
     }
     epsi *= 0.1;
   }
@@ -575,7 +540,7 @@ DensityUpdateMMANew::MMASubSolve(int m,
 }
 
 std::vector<Real>
-DensityUpdateMMANew::AbsVector(std::vector<Real> vector)
+DensityUpdateMMANew::AbsVec(std::vector<Real> vector)
 {
   for (unsigned int i = 0; i < vector.size(); i++)
   {
