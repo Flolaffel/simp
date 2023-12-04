@@ -11,6 +11,7 @@
 
 #include "ElementUserObject.h"
 #include "MooseTypes.h"
+#include "TransientInterface.h"
 
 /**
  * Element user object that performs SIMP optimization using a bisection algorithm using a volume
@@ -42,27 +43,52 @@ protected:
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The old pseudo-density variable
-  MooseWritableVariable * _old_design_density;
+  MooseWritableVariable * _old_design_density1;
+  /// The older pseudo-density variable
+  MooseWritableVariable * _old_design_density2;
   /// The filtered density sensitivity variable
   const MooseWritableVariable * _density_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
+  /// Column vector with the lower asymptotes from the previous iteration (provided that iter>1)
+  MooseWritableVariable * _lower_asymptotes;
+  /// Column vector with the upper asymptotes from the previous iteration (provided that iter>1)
+  MooseWritableVariable * _upper_asymptotes;
 
 private:
   struct ElementData
   {
+    Real current_density;
     Real old_density1;
     Real old_density2;
     Real sensitivity;
     Real volume;
+    Real lower;
+    Real upper;
     Real new_density;
+    Real new_lower;
+    Real new_upper;
     ElementData() = default;
-    ElementData(Real dens1, Real dens2, Real sens, Real vol, Real filt_dens)
-      : old_density1(dens1),
-        old_density2(dens2),
+    ElementData(Real curr_dens,
+                Real old_dens1,
+                Real old_dens2,
+                Real sens,
+                Real vol,
+                Real low,
+                Real upp,
+                Real filt_dens,
+                Real new_low,
+                Real new_upp)
+      : current_density(curr_dens),
+        old_density1(old_dens1),
+        old_density2(old_dens2),
         sensitivity(sens),
         volume(vol),
-        new_density(filt_dens)
+        lower(low),
+        upper(upp),
+        new_density(filt_dens),
+        new_lower(new_low),
+        new_upper(new_upp)
     {
     }
   };
@@ -77,16 +103,29 @@ private:
    */
   void performMMALoop();
 
-  Real computeUpdatedDensity(Real current_density, Real dc, Real lmid);
-
   /// Total volume allowed for volume contraint
   Real _total_allowable_volume;
 
   /// Data structure to hold old density, sensitivity, volume, current density.
   std::map<dof_id_type, ElementData> _elem_data_map;
 
-  /// Lower bound for bisection algorithm
-  const Real _lower_bound;
-  /// Upper bound for bisection algorithm
-  const Real _upper_bound;
+  std::vector<Real> MMASubSolve(Real m,
+                                Real n,
+                                Real epsimin,
+                                std::vector<Real> low,
+                                std::vector<Real> upp,
+                                std::vector<Real> alpha,
+                                std::vector<Real> beta,
+                                std::vector<Real> p0,
+                                std::vector<Real> q0,
+                                std::vector<Real> P,
+                                std::vector<Real> Q,
+                                Real a0,
+                                Real a,
+                                Real b,
+                                Real c,
+                                Real d);
+
+  std::vector<Real> AbsVec(std::vector<Real> vector);
+  Real NormVec(std::vector<Real> vector);
 };
