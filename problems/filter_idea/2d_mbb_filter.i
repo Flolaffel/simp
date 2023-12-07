@@ -127,15 +127,28 @@ Emin = 1e-9
     type = ComputeVariableIsotropicElasticityTensor
     youngs_modulus = E_phys
     poissons_ratio = poissons_ratio
-    args = 'Emin rhoPhys p E0'
+    args = 'Emin rho p E0'
   []
   [E_phys]
     type = DerivativeParsedMaterial
     # Emin + (density^penal) * (E0 - Emin)
-    expression = '${Emin} + (rhoPhys ^ ${p}) * (${E0}-${Emin})'
-    coupled_variables = 'rhoPhys'
+    expression = '${Emin} + (rho ^ ${p}) * (${E0}-${Emin})'
+    coupled_variables = 'rho'
     property_name = E_phys
   []
+  # [elasticity_tensor]
+  #   type = ComputeVariableIsotropicElasticityTensor
+  #   youngs_modulus = E_phys
+  #   poissons_ratio = poissons_ratio
+  #   args = 'Emin rhoPhys p E0'
+  # []
+  # [E_phys]
+  #   type = DerivativeParsedMaterial
+  #   # Emin + (density^penal) * (E0 - Emin)
+  #   expression = '${Emin} + (rhoPhys ^ ${p}) * (${E0}-${Emin})'
+  #   coupled_variables = 'rhoPhys'
+  #   property_name = E_phys
+  # []
   [poissons_ratio]
     type = GenericConstantMaterial
     prop_names = poissons_ratio
@@ -153,12 +166,6 @@ Emin = 1e-9
     Emin = ${Emin}
     p = ${p}
   []
-  [filter_mat]
-    type = ParsedMaterial
-    property_name = filter_mat
-    coupled_variables = 'rho'
-    expression = 'rho'
-  []
 []
 
 [Preconditioning]
@@ -170,19 +177,43 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateDensityFilter
+    type = DensityUpdateTop88
     compliance_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
-    #filter_type = none
-    #physical_density = rhoPhys
-    #mesh_generator = MeshGenerator
-    #radius = ${filter_radius}
+    bisection_upper_bound = 1e9
     execute_on = TIMESTEP_END
   []
+  # [rad_avg]
+  #   type = RadialAverage
+  #   radius = ${filter_radius}
+  #   weights = linear
+  #   prop_name = filter_mat
+  #   execute_on = TIMESTEP_END
+  #   force_preaux = true
+  # []
+  # [calc_sense]
+  #   type = SensitivityFilterTop88
+  #   compliance_sensitivity = Dc
+  #   design_density = rho
+  #   filter_UO = rad_avg
+  #   execute_on = TIMESTEP_END
+  #   force_postaux = true
+  # []
+  # [update]
+  #   type = DensityUpdateDensityFilter
+  #   compliance_sensitivity = Dc
+  #   design_density = rho
+  #   volume_fraction = ${vol_frac}
+  #   #filter_type = none
+  #   #physical_density = rhoPhys
+  #   #mesh_generator = MeshGenerator
+  #   #radius = ${filter_radius}
+  #   execute_on = TIMESTEP_END
+  # []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
   [calc_sense]
-    type = SensitivityUpdateDensityFilter
+    type = SensitivityFilterCustom
     compliance_sensitivity = Dc
     design_density = rho
     #volume_sensitivity = DV
@@ -206,7 +237,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 130
+  num_steps = 100
 []
 
 [Outputs]
