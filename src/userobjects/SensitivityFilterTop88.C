@@ -21,7 +21,8 @@ SensitivityFilterTop88::validParams()
   params.addClassDescription(
       "Computes the filtered sensitivity using a radial average user object.");
   params.addRequiredParam<UserObjectName>("filter_UO", "Radial Average user object");
-  params.addRequiredCoupledVar("density_sensitivity", "Name of the density_sensitivity variable.");
+  params.addRequiredCoupledVar("compliance_sensitivity",
+                               "Name of the compliance_sensitivity variable.");
   params.addRequiredParam<VariableName>("design_density", "Design density variable name.");
 
   return params;
@@ -29,9 +30,8 @@ SensitivityFilterTop88::validParams()
 
 SensitivityFilterTop88::SensitivityFilterTop88(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _filter(getUserObject<RadialAverageTop88>("filter_UO").getAverage()),
-    _filter_weight_sum(getUserObject<RadialAverageTop88>("filter_UO").getWeightSum()),
-    _density_sensitivity(writableVariable("density_sensitivity")),
+    _filter(getUserObject<RadialAverage>("filter_UO").getAverage()),
+    _compliance_sensitivity(writableVariable("compliance_sensitivity")),
     _design_density_name(getParam<VariableName>("design_density")),
     _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
 {
@@ -42,7 +42,6 @@ SensitivityFilterTop88::execute()
 {
   // Find the current element in the filter
   auto filter_iter = _filter.find(_current_elem->id());
-  auto filter_weight_sum_iter = _filter_weight_sum.find(_current_elem->id());
 
   // Assert the element is found in the filter
   mooseAssert(
@@ -52,15 +51,9 @@ SensitivityFilterTop88::execute()
 
   // Get the quadrature point values from the filter
   std::vector<Real> qp_vals = filter_iter->second;
-  std::vector<Real> qp_weight_vals = filter_weight_sum_iter->second;
-
-  // for (Real i: qp_weight_vals)
-  //   _console << i << "\n" << std::flush;
-  //_console << qp_weight_vals[0] << "\n" << std::flush;
 
   // Initialize the total elemental sensitivity value
   Real den_sense_val = 0;
-  Real weight_sum_val = 0;
 
   // Get the pseudo density for the current element
   Real x = _design_density.getElementalValue(_current_elem);
@@ -69,28 +62,10 @@ SensitivityFilterTop88::execute()
   for (unsigned int qp = 0; qp < _qrule->n_points(); qp++)
   {
     den_sense_val += qp_vals[qp] * _JxW[qp];
-    weight_sum_val += qp_weight_vals[qp] * _JxW[qp];
   }
 
   den_sense_val = (den_sense_val) / (_current_elem_volume * std::max(0.001, x));
-  /*_console << "current el: " << _current_elem->id() << "\n" << std::flush;
-  _console << "current vol: " << _current_elem_volume << "\n" << std::flush;
-  _console << "current dens: " << _design_density.getElementalValue(_current_elem) << "\n" <<
-  std::flush;*/
-  //_console << "current weight sum: " << weight_sum_val << "\n" << std::flush;
-
-  //_design_density.getElementalValue(
 
   // Set the nodal value of the density sensitivity
-  _density_sensitivity.setNodalValue(den_sense_val);
-
-  /*auto id = _current_elem->id();
-  auto vol = _current_elem->volume();
-  auto mid = _current_elem->vertex_average();
-
-  std::ofstream outFile("top88.txt");
-  for (Real i: qp_vals)
-    outFile << i << "\n";
-
-  _console << "ID: " << id  << ", vol: " << vol << ", mid: " << mid << "\n" << std::flush;*/
+  _compliance_sensitivity.setNodalValue(den_sense_val);
 }
