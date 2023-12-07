@@ -21,8 +21,8 @@ DensityUpdateTop88::validParams()
       "Compute updated densities based on sensitivities using an optimality criteria method to "
       "keep the volume constraint satisified.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
-  params.addRequiredParam<VariableName>("density_sensitivity",
-                                        "Name of the density_sensitivity variable.");
+  params.addRequiredParam<VariableName>("compliance_sensitivity",
+                                        "Name of the compliance_sensitivity variable.");
   params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
   params.addParam<Real>("bisection_upper_bound", 1e16, "Upper bound for the bisection algorithm.");
@@ -39,9 +39,9 @@ DensityUpdateTop88::validParams()
 DensityUpdateTop88::DensityUpdateTop88(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _mesh(_subproblem.mesh()),
-    _density_sensitivity_name(getParam<VariableName>("density_sensitivity")),
+    _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _design_density(&writableVariable("design_density")),
-    _density_sensitivity(&_subproblem.getStandardVariable(_tid, _density_sensitivity_name)),
+    _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
     _volume_fraction(getParam<Real>("volume_fraction")),
     _lower_bound(getParam<Real>("bisection_lower_bound")),
     _upper_bound(getParam<Real>("bisection_upper_bound"))
@@ -87,7 +87,7 @@ DensityUpdateTop88::gatherElementData()
       dof_id_type elem_id = elem->id();
       ElementData data = ElementData(
           dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-          dynamic_cast<const MooseVariableFE<Real> *>(_density_sensitivity)
+          dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
               ->getElementalValue(elem),
           elem->volume(),
           0);

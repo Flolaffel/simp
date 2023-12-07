@@ -36,11 +36,11 @@ protected:
   /// The name of the pseudo-density variable
   const VariableName _design_density_name;
   /// The elasticity compliance sensitivity name
-  const VariableName _density_sensitivity_name;
+  const VariableName _compliance_sensitivity_name;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The filtered density sensitivity variable
-  const MooseWritableVariable * _density_sensitivity;
+  const MooseWritableVariable * _compliance_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
 
