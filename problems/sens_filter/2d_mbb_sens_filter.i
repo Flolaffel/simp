@@ -3,8 +3,8 @@
 # - DensityUpdate l2 upper bound
 # - DensityUpdate max min ...
 
-nx = 30
-ny = 10
+nx = 60
+ny = 20
 p = 3
 vol_frac = 0.5
 filter_radius = 1.5
@@ -30,13 +30,13 @@ Emin = 1e-9
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '30 0 0'
+    coord = '60 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 10 0'
+    coord = '0 20 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -173,13 +173,13 @@ Emin = 1e-9
 [UserObjects]
   [update]
     type = DensityUpdateTop88
-    density_sensitivity = Dc
+    compliance_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
     execute_on = TIMESTEP_END
   []
   [rad_avg]
-    type = RadialAverageTop88
+    type = RadialAverage
     radius = ${filter_radius}
     weights = linear
     prop_name = filter_mat
@@ -188,7 +188,7 @@ Emin = 1e-9
   []
   [calc_sense]
     type = SensitivityFilterTop88
-    density_sensitivity = Dc
+    compliance_sensitivity = Dc
     design_density = rho
     filter_UO = rad_avg
     execute_on = TIMESTEP_END
