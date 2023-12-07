@@ -7,13 +7,13 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "DensityUpdateDensityFilter.h"
+#include "DensityUpdateCustom.h"
 #include <algorithm>
 
-registerMooseObject("OptimizationApp", DensityUpdateDensityFilter);
+registerMooseObject("OptimizationApp", DensityUpdateCustom);
 
 InputParameters
-DensityUpdateDensityFilter::validParams()
+DensityUpdateCustom::validParams()
 {
   InputParameters params = Filter::validParams();
   params.addClassDescription(
@@ -36,7 +36,7 @@ DensityUpdateDensityFilter::validParams()
   return params;
 }
 
-DensityUpdateDensityFilter::DensityUpdateDensityFilter(const InputParameters & parameters)
+DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   : Filter(parameters),
     _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _design_density(&writableVariable("design_density")),
@@ -58,7 +58,7 @@ DensityUpdateDensityFilter::DensityUpdateDensityFilter(const InputParameters & p
 }
 
 void
-DensityUpdateDensityFilter::initialize()
+DensityUpdateCustom::initialize()
 {
   gatherElementData();
   if (_filter_type == FilterType::DENSITY)
@@ -67,7 +67,7 @@ DensityUpdateDensityFilter::initialize()
 }
 
 void
-DensityUpdateDensityFilter::execute()
+DensityUpdateCustom::execute()
 {
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
@@ -89,7 +89,7 @@ DensityUpdateDensityFilter::execute()
 }
 
 void
-DensityUpdateDensityFilter::gatherElementData()
+DensityUpdateCustom::gatherElementData()
 {
   _elem_data_map.clear();
   _total_allowable_volume = 0;
@@ -114,7 +114,7 @@ DensityUpdateDensityFilter::gatherElementData()
 }
 
 void
-DensityUpdateDensityFilter::performOptimCritLoop()
+DensityUpdateCustom::performOptimCritLoop()
 {
   // Initialize the lower and upper bounds for the bisection method
   Real l1 = _lower_bound;
@@ -181,7 +181,7 @@ DensityUpdateDensityFilter::performOptimCritLoop()
 
 // Method to compute the updated density for an element
 Real
-DensityUpdateDensityFilter::computeUpdatedDensity(Real current_density, Real dc, Real lmid)
+DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real lmid)
 {
   // Define the maximum allowable change in density
   Real move = 0.2;

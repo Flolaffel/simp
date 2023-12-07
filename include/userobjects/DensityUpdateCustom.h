@@ -17,12 +17,12 @@
  * constraint.
  * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
  */
-class DensityUpdateDensityFilter : public Filter
+class DensityUpdateCustom : public Filter
 {
 public:
   static InputParameters validParams();
 
-  DensityUpdateDensityFilter(const InputParameters & parameters);
+  DensityUpdateCustom(const InputParameters & parameters);
 
   virtual void initialize() override;
   virtual void timestepSetup() override{};
