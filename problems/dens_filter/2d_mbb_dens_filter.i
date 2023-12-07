@@ -74,6 +74,11 @@ Emin = 1e-9
     order = CONSTANT
     initial_condition = ${vol_frac}
   []
+  [rhoPhys]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
+  []
 []
 
 [AuxKernels]
@@ -122,13 +127,13 @@ Emin = 1e-9
     type = ComputeVariableIsotropicElasticityTensor
     youngs_modulus = E_phys
     poissons_ratio = poissons_ratio
-    args = 'Emin rho p E0'
+    args = 'Emin rhoPhys p E0'
   []
   [E_phys]
     type = DerivativeParsedMaterial
     # Emin + (density^penal) * (E0 - Emin)
-    expression = '${Emin} + (rho ^ ${p}) * (${E0}-${Emin})'
-    coupled_variables = 'rho'
+    expression = '${Emin} + (rhoPhys ^ ${p}) * (${E0}-${Emin})'
+    coupled_variables = 'rhoPhys'
     property_name = E_phys
   []
   [poissons_ratio]
@@ -168,8 +173,10 @@ Emin = 1e-9
     type = DensityUpdateDensityFilter
     compliance_sensitivity = Dc
     design_density = rho
-    mesh_generator = MeshGenerator
     volume_fraction = ${vol_frac}
+    filter_type = density
+    physical_density = rhoPhys
+    mesh_generator = MeshGenerator
     radius = ${filter_radius}
     execute_on = TIMESTEP_END
   []
@@ -179,6 +186,7 @@ Emin = 1e-9
     compliance_sensitivity = Dc
     volume_sensitivity = DV
     radius = ${filter_radius}
+    filter_type = density
     mesh_generator = MeshGenerator
     execute_on = TIMESTEP_END
     force_postaux = true
