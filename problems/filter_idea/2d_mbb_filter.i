@@ -74,6 +74,11 @@ Emin = 1e-9
     order = CONSTANT
     initial_condition = ${vol_frac}
   []
+  [rhoPhys]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
+  []
 []
 
 [AuxKernels]
@@ -122,13 +127,13 @@ Emin = 1e-9
     type = ComputeVariableIsotropicElasticityTensor
     youngs_modulus = E_phys
     poissons_ratio = poissons_ratio
-    args = 'Emin rho p E0'
+    args = 'Emin rhoPhys p E0'
   []
   [E_phys]
     type = DerivativeParsedMaterial
     # Emin + (density^penal) * (E0 - Emin)
-    expression = '${Emin} + (rho ^ ${p}) * (${E0}-${Emin})'
-    coupled_variables = 'rho'
+    expression = '${Emin} + (rhoPhys ^ ${p}) * (${E0}-${Emin})'
+    coupled_variables = 'rhoPhys'
     property_name = E_phys
   []
   [poissons_ratio]
@@ -148,6 +153,12 @@ Emin = 1e-9
     Emin = ${Emin}
     p = ${p}
   []
+  [filter_mat]
+    type = ParsedMaterial
+    property_name = filter_mat
+    coupled_variables = 'rho'
+    expression = 'rho'
+  []
 []
 
 [Preconditioning]
@@ -163,16 +174,20 @@ Emin = 1e-9
     compliance_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
-    radius = ${filter_radius}
-    mesh_generator = MeshGenerator
+    #filter_type = none
+    #physical_density = rhoPhys
+    #mesh_generator = MeshGenerator
+    #radius = ${filter_radius}
     execute_on = TIMESTEP_END
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
   [calc_sense]
     type = SensitivityUpdateDensityFilter
     compliance_sensitivity = Dc
-    volume_sensitivity = DV
+    design_density = rho
+    #volume_sensitivity = DV
     radius = ${filter_radius}
+    filter_type = sensitivity
     mesh_generator = MeshGenerator
     execute_on = TIMESTEP_END
     force_postaux = true
