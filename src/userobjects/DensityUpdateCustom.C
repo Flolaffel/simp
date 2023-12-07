@@ -15,18 +15,14 @@ registerMooseObject("OptimizationApp", DensityUpdateDensityFilter);
 InputParameters
 DensityUpdateDensityFilter::validParams()
 {
-  InputParameters params = ElementUserObject::validParams();
+  InputParameters params = Filter::validParams();
   params.addClassDescription(
       "Compute updated densities based on sensitivities using an optimality criteria method to "
       "keep the volume constraint satisified.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredParam<VariableName>("compliance_sensitivity",
                                         "Name of the compliance_sensitivity variable.");
-  params.addRequiredParam<MeshGeneratorName>(
-      "mesh_generator",
-      "Name of the mesh generator to be used to retrieve control drums information.");
   params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
-  params.addRequiredParam<Real>("radius", "Cut-off radius for the averaging");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
   params.addParam<Real>("bisection_upper_bound", 1e16, "Upper bound for the bisection algorithm.");
   params.addParam<int>(
@@ -36,36 +32,37 @@ DensityUpdateDensityFilter::validParams()
       "number is executed first). Note that negative group numbers may be used to execute groups "
       "before the default (0) group. Please refer to the user object documentation "
       "for ordering of user object execution within a group.");
+  params.addCoupledVar("physical_density", "Physical density variable name.");
   return params;
 }
 
 DensityUpdateDensityFilter::DensityUpdateDensityFilter(const InputParameters & parameters)
-  : ElementUserObject(parameters),
-    _mesh(_subproblem.mesh()),
-    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator")),
+  : Filter(parameters),
     _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _design_density(&writableVariable("design_density")),
     _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
     _volume_fraction(getParam<Real>("volume_fraction")),
-    _radius(getParam<Real>("radius")),
-    _nx(getMeshProperty<unsigned int>("num_elements_x", _mesh_generator)),
-    _ny(getMeshProperty<unsigned int>("num_elements_y", _mesh_generator)),
-    _xmin(getMeshProperty<Real>("xmin", _mesh_generator)),
-    _xmax(getMeshProperty<Real>("xmax", _mesh_generator)),
-    _ymin(getMeshProperty<Real>("ymin", _mesh_generator)),
-    _ymax(getMeshProperty<Real>("ymax", _mesh_generator)),
     _lower_bound(getParam<Real>("bisection_lower_bound")),
     _upper_bound(getParam<Real>("bisection_upper_bound"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
+
+  if (_filter_type == FilterType::DENSITY)
+  {
+    if (!parameters.isParamSetByUser("physical_density"))
+      paramError("physical_density", "No physical_density for density filtering supplied.");
+    else
+      _physical_density = &writableVariable("physical_density");
+  }
 }
 
 void
 DensityUpdateDensityFilter::initialize()
 {
   gatherElementData();
-  prepareFilter();
+  if (_filter_type == FilterType::DENSITY)
+    Filter::prepareFilter();
   performOptimCritLoop();
 }
 
@@ -79,7 +76,11 @@ DensityUpdateDensityFilter::execute()
   if (elem_data_iter != _elem_data_map.end())
   {
     ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_design_density)->setNodalValue(elem_data.new_density);
+    dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+        ->setNodalValue(elem_data.new_design_density);
+    if (_filter_type == FilterType::DENSITY)
+      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+          ->setNodalValue(elem_data.new_phys_density);
   }
   else
   {
@@ -102,6 +103,7 @@ DensityUpdateDensityFilter::gatherElementData()
           dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
               ->getElementalValue(elem),
           elem->volume(),
+          0,
           0);
       _elem_data_map[elem_id] = data;
       _total_allowable_volume += elem->volume();
@@ -109,57 +111,6 @@ DensityUpdateDensityFilter::gatherElementData()
 
   _communicator.sum(_total_allowable_volume);
   _total_allowable_volume *= _volume_fraction;
-}
-
-void
-DensityUpdateDensityFilter::prepareFilter()
-{
-  // Only eligibale for elemente size of 1 mm
-  int upp_r = ceil(_radius);
-  int size = _nx * _ny * std::pow((2 * (upp_r - 1) + 1), 2);
-  std::vector<int> iH(size, 1);
-  std::vector<int> jH(size, 1);
-  std::vector<Real> sH(size, 0);
-  int counter = 0;
-  for (unsigned int i = 0; i < _ny; i++)
-  {
-    for (unsigned int j = 0; j < _nx; j++)
-    {
-      int e1 = i * _nx + j;
-      for (int k = std::max<int>(i - (upp_r - 1), 0); k < std::min<int>(i + upp_r, _ny); k++)
-      {
-        for (int l = std::max<int>(j - (upp_r - 1), 0); l < std::min<int>(j + upp_r, _nx); l++)
-        {
-          int e2 = k * _nx + l;
-          iH[counter] = e1;
-          jH[counter] = e2;
-          sH[counter] = std::max<double>(0,
-                                         _radius - std::sqrt(std::pow(std::abs<int>(i - k), 2) +
-                                                             std::pow(std::abs<int>(j - l), 2)));
-          counter++;
-        }
-      }
-    }
-  }
-
-  // Fill _H and with values sH at locations iH,jH
-  _H.resize(_nx * _ny, std::vector<Real>(_nx * _ny, 0));
-  _Hs.resize(_nx * _ny);
-  for (int i = 0; i < counter; i++)
-  {
-    _H[iH[i]][jH[i]] = sH[i];
-  }
-
-  // Fill _Hs with the column sums of _H
-  for (unsigned int i = 0; i < _H.size(); i++)
-  {
-    Real column_sum = 0;
-    for (unsigned int j = 0; j < _H[i].size(); j++)
-    {
-      column_sum += _H[i][j];
-    }
-    _Hs[i] = column_sum;
-  }
 }
 
 void
@@ -176,7 +127,8 @@ DensityUpdateDensityFilter::performOptimCritLoop()
     Real lmid = 0.5 * (l2 + l1);
 
     // Initialize a vector holding the new densities
-    std::vector<Real> x(_nx * _ny);
+    unsigned int n_el = _elem_data_map.size();
+    std::vector<Real> x(n_el);
     // Initialize the current total volume
     Real curr_total_volume = 0;
     // Loop over all elements
@@ -184,23 +136,32 @@ DensityUpdateDensityFilter::performOptimCritLoop()
     {
       // Compute the updated density for the current element
       Real new_density = computeUpdatedDensity(elem_data.old_density, elem_data.sensitivity, lmid);
+      // Update design density
+      elem_data.new_design_density = new_density;
       // Add density to vector
-      x[id] = new_density;
+      if (_filter_type == FilterType::DENSITY)
+        x[id] = new_density;
+      else
+        curr_total_volume += new_density * elem_data.volume;
     }
 
     // Filter the new densities
-    for (auto && [id, elem_data] : _elem_data_map)
+    if (_filter_type == FilterType::DENSITY)
     {
-      Real filt_density = 0;
-      for (unsigned int j = 0; j < _nx * _ny; j++)
+      for (auto && [id, elem_data] : _elem_data_map)
       {
-        filt_density += _H[id][j] * x[j];
+        Real filt_density = 0;
+        for (unsigned int j = 0; j < n_el; j++)
+        {
+          filt_density += _H[id][j] * x[j];
+        }
+        filt_density /= _Hs[id];
+        // Update the design and filtered densities for the current element
+        elem_data.new_design_density = x[id];
+        elem_data.new_phys_density = filt_density;
+        // Update the current total volume
+        curr_total_volume += filt_density * elem_data.volume;
       }
-      filt_density /= _Hs[id];
-      // Update the current filtered density for the current element
-      elem_data.new_density = filt_density;
-      // Update the current total volume
-      curr_total_volume += filt_density * elem_data.volume;
     }
 
     // Sum the current total volume across all processors
