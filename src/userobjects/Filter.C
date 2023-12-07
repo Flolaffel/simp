@@ -17,9 +17,10 @@ InputParameters
 Filter::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
+  params += Filter::commonParameters();
   params.addClassDescription("Prepares filtering.");
-  params.addRequiredParam<Real>("radius", "Cut-off radius for the averaging");
-  params.addRequiredParam<MeshGeneratorName>(
+  params.addParam<Real>("radius", "Cut-off radius for the averaging");
+  params.addParam<MeshGeneratorName>(
       "mesh_generator",
       "Name of the mesh generator to be used to retrieve control drums information.");
   return params;
@@ -27,16 +28,20 @@ Filter::validParams()
 
 Filter::Filter(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _mesh(_subproblem.mesh()),
-    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator")),
-    _radius(getParam<Real>("radius")),
-    _nx(getMeshProperty<unsigned int>("num_elements_x", _mesh_generator)),
-    _ny(getMeshProperty<unsigned int>("num_elements_y", _mesh_generator)),
-    _xmin(getMeshProperty<Real>("xmin", _mesh_generator)),
-    _xmax(getMeshProperty<Real>("xmax", _mesh_generator)),
-    _ymin(getMeshProperty<Real>("ymin", _mesh_generator)),
-    _ymax(getMeshProperty<Real>("ymax", _mesh_generator))
+    _filter_type(getParam<MooseEnum>("filter_type").getEnum<FilterType>()),
+    _mesh(_subproblem.mesh())
 {
+  if (_filter_type != FilterType::NONE)
+  {
+    _mesh_generator = getParam<MeshGeneratorName>("mesh_generator");
+    _radius = getParam<Real>("radius");
+    _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
+    _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
+    _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
+    _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
+    _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
+    _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+  }
 }
 
 void
@@ -88,4 +93,25 @@ Filter::prepareFilter()
     }
     _Hs[i] = column_sum;
   }
+}
+
+MooseEnum
+Filter::getFilterEnum()
+{
+  auto filter = MooseEnum("none sensitivity density", "none");
+
+  filter.addDocumentation("none", "No filter.");
+  filter.addDocumentation("sensitivity", "Sensitivity filter.");
+  filter.addDocumentation("density", "Density filter.");
+  return filter;
+}
+
+InputParameters
+Filter::commonParameters()
+{
+  InputParameters params = emptyInputParameters();
+
+  params.addParam<MooseEnum>("filter_type", Filter::getFilterEnum(), "The filter type");
+
+  return params;
 }

@@ -12,12 +12,21 @@
 #include "ElementUserObject.h"
 #include "MeshMetaDataInterface.h"
 #include "MooseTypes.h"
+#include "MooseEnum.h"
 
 /**
  * Element user object that filters the objective function sensitivities via a radial average user
  * objects. This object can be used to apply a Solid Isotropic Material Penalization (SIMP) to
  * optimization.
  */
+
+enum class FilterType
+{
+  NONE,
+  SENSITIVITY,
+  DENSITY
+};
+
 class Filter : public ElementUserObject
 {
 public:
@@ -30,25 +39,39 @@ public:
   virtual void finalize() override{};
   virtual void threadJoin(const UserObject &) override{};
 
+  /**
+   * Get filter type
+   * @return enum
+   */
+  static MooseEnum getFilterEnum();
+
+  /**
+   * Define parameters used by multiple filter objects
+   * @return InputParameters object populated with common parameters
+   */
+  static InputParameters commonParameters();
+
 protected:
+  /// Whether to filter the densities
+  const FilterType _filter_type;
   /// The system mesh
   const MooseMesh & _mesh;
   /// Name of the mesh generator to get MeshMetaData from
-  const MeshGeneratorName _mesh_generator;
+  MeshGeneratorName _mesh_generator;
   /// Cut-off radius for filtering
-  const Real _radius;
+  Real _radius;
   /// Number of elements in X direction
-  const unsigned int _nx;
+  unsigned int _nx;
   /// Number of elements in Y direction
-  const unsigned int _ny;
+  unsigned int _ny;
   /// Lower X Coordinate of the generated mesh
-  const Real _xmin;
+  Real _xmin;
   /// Upper X Coordinate of the generated mesh
-  const Real _xmax;
+  Real _xmax;
   /// Lower Y Coordinate of the generated mesh
-  const Real _ymin;
+  Real _ymin;
   /// Upper Y Coordinate of the generated mesh
-  const Real _ymax;
+  Real _ymax;
 
   /// Data structures to hold the filter weights
   std::vector<std::vector<Real>> _H;
