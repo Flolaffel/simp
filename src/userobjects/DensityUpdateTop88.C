@@ -9,7 +9,6 @@
 
 #include "DensityUpdateTop88.h"
 #include <algorithm>
-#include "Output.h"
 
 registerMooseObject("OptimizationApp", DensityUpdateTop88);
 
@@ -30,9 +29,9 @@ DensityUpdateTop88::validParams()
       "execution_order_group",
       1,
       "Execution order groups are executed in increasing order (e.g., the lowest "
-      "number is executed first). Note that negative group numbers may be used to execute groups "
-      "before the default (0) group. Please refer to the user object documentation "
-      "for ordering of user object execution within a group.");
+      "number is executed first). Note that negative group numbers may be used to execute groups
+      " "before the default (0) group. Please refer to the user object documentation " "for
+      ordering of user object execution within a group.");
   return params;
 }
 
