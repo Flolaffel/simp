@@ -24,14 +24,14 @@ DensityUpdateTop88::validParams()
                                         "Name of the compliance_sensitivity variable.");
   params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
-  params.addParam<Real>("bisection_upper_bound", 1e16, "Upper bound for the bisection algorithm.");
+  params.addParam<Real>("bisection_upper_bound", 1e9, "Upper bound for the bisection algorithm.");
   params.addParam<int>(
       "execution_order_group",
       1,
       "Execution order groups are executed in increasing order (e.g., the lowest "
-      "number is executed first). Note that negative group numbers may be used to execute groups
-      " "before the default (0) group. Please refer to the user object documentation " "for
-      ordering of user object execution within a group.");
+      "number is executed first). Note that negative group numbers may be used to execute groups "
+      "before the default (0) group. Please refer to the user object documentation "
+      "for ordering of user object execution within a group.");
   return params;
 }
 
