@@ -153,12 +153,6 @@ Emin = 1e-9
     Emin = ${Emin}
     p = ${p}
   []
-  [filter_mat]
-    type = ParsedMaterial
-    property_name = filter_mat
-    coupled_variables = 'rho'
-    expression = 'rho'
-  []
 []
 
 [Preconditioning]
