@@ -109,7 +109,7 @@ SensitivityFilterCustom::gatherElementData()
         ElementData data = ElementData(
             dynamic_cast<MooseVariableFE<Real> *>(_compliance_sensitivity)->getElementalValue(elem),
             0,
-            dynamic_cast<MooseVariableFE<Real> *>(_volume_sensitivity)->getElementalValue(elem),
+            1,
             0,
             0);
         _elem_data_map[elem_id] = data;
