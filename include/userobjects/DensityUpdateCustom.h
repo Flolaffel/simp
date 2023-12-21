@@ -17,6 +17,13 @@
  * constraint.
  * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
  */
+
+enum class UpdateScheme
+{
+  OC,
+  MMA
+};
+
 class DensityUpdateCustom : public Filter
 {
 public:
@@ -31,6 +38,8 @@ public:
   virtual void threadJoin(const UserObject &) override{};
 
 protected:
+  /// The update scheme
+  const UpdateScheme _update_scheme;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The pseudo-density variable
@@ -45,6 +54,12 @@ protected:
   const MooseWritableVariable * _volume_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
+
+  /**
+   * Get update scheme
+   * @return enum
+   */
+  static MooseEnum getUpdateSchemeEnum();
 
 private:
   struct ElementData
@@ -86,7 +101,7 @@ private:
   std::map<dof_id_type, ElementData> _elem_data_map;
 
   /// Lower bound for bisection algorithm
-  const Real _lower_bound;
+  Real _lower_bound;
   /// Upper bound for bisection algorithm
-  const Real _upper_bound;
+  Real _upper_bound;
 };

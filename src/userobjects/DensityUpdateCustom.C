@@ -19,6 +19,8 @@ DensityUpdateCustom::validParams()
   params.addClassDescription(
       "Compute updated densities based on sensitivities using an optimality criteria method to "
       "keep the volume constraint satisified.");
+  params.addParam<MooseEnum>(
+      "update_scheme", DensityUpdateCustom::getUpdateSchemeEnum(), "The update scheme");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredParam<VariableName>("compliance_sensitivity",
                                         "Name of the compliance sensitivity variable.");
@@ -40,15 +42,14 @@ DensityUpdateCustom::validParams()
 
 DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   : Filter(parameters),
+    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateScheme>()),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density")),
     _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
     _volume_sensitivity_name(getParam<VariableName>("volume_sensitivity")),
     _volume_sensitivity(&_subproblem.getStandardVariable(_tid, _volume_sensitivity_name)),
-    _volume_fraction(getParam<Real>("volume_fraction")),
-    _lower_bound(getParam<Real>("bisection_lower_bound")),
-    _upper_bound(getParam<Real>("bisection_upper_bound"))
+    _volume_fraction(getParam<Real>("volume_fraction"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
@@ -56,6 +57,12 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
     paramError("physical_density", "Physical density must be a finite element variable");
   if (_filter_type == FilterType::SENSITIVITY)
     paramError("filter_type", "Sensitivity filtering is not a viable option for density update");
+
+  if (_update_scheme == UpdateScheme::OC)
+  {
+    _lower_bound = getParam<Real>("bisection_lower_bound");
+    _upper_bound = getParam<Real>("bisection_upper_bound");
+  }
 }
 
 void
@@ -199,4 +206,11 @@ DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real d
                                           current_density * std::sqrt(-dc / dv / lmid)))));
   // Return the updated density
   return updated_density;
+}
+
+MooseEnum
+DensityUpdateCustom::getUpdateSchemeEnum()
+{
+  auto filter = MooseEnum("OC MMA", "OC");
+  return filter;
 }
