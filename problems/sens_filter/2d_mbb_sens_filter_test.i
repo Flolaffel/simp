@@ -1,8 +1,3 @@
-# Änderungen: 
-# - DensityUpdate move
-# - DensityUpdate l2 upper bound
-# - DensityUpdate max min ...
-
 nx = 60
 ny = 20
 p = 3
@@ -45,7 +40,6 @@ Emin = 1e-9
 []
 
 [AuxVariables]
-
   [Emin]
     family = MONOMIAL
     order = CONSTANT
@@ -66,6 +60,11 @@ Emin = 1e-9
     order = CONSTANT
   []
   [rho]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${vol_frac}
+  []
+  [rhoPhys]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = ${vol_frac}
@@ -106,7 +105,7 @@ Emin = 1e-9
 
 [Materials]
   [elasticity_tensor]
-    type = ComputeVariableIsotropicElasticityTensor
+    type = ComputeVariableElasticityTensor
     youngs_modulus = E_phys
     poissons_ratio = poissons_ratio
     args = 'Emin rho p E0'
@@ -151,17 +150,18 @@ Emin = 1e-9
   []
 []
 
-[UserObjects]  
+[UserObjects]
   [update]
     type = DensityUpdateTop88
-    density_sensitivity = Dc
+    compliance_sensitivity = Dc
     design_density = rho
     volume_fraction = ${vol_frac}
     execute_on = TIMESTEP_END
+    execution_order_group = 1
     bisection_upper_bound = 1e9
   []
   [rad_avg]
-    type = RadialAverageTop88
+    type = RadialAverage
     radius = ${filter_radius}
     weights = linear
     prop_name = filter_mat
@@ -170,17 +170,17 @@ Emin = 1e-9
   []
   [calc_sense]
     type = SensitivityFilterTop88
-    density_sensitivity = Dc
+    compliance_sensitivity = Dc
     design_density = rho
     filter_UO = rad_avg
     execute_on = TIMESTEP_END
     force_postaux = true
   []
-  [opt_conv]
-    type = Terminator
-    expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
-    execute_on = TIMESTEP_END
-  []
+  #[opt_conv]
+  #  type = Terminator
+  #  expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
+  #  execute_on = TIMESTEP_END
+  #[]
 []
 
 [Executioner]
@@ -190,7 +190,7 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 94
+  num_steps = 1
 []
 
 [Outputs]
@@ -211,7 +211,7 @@ Emin = 1e-9
   []
   [n_el]
     type = ConstantPostprocessor
-    value = ${fparse nx*ny}
+    value = '${fparse nx*ny}'
   []
   [stop_vol]
     type = ParsedPostprocessor
@@ -231,3 +231,8 @@ Emin = 1e-9
     execute_on = 'initial timestep_end'
   []
 []
+
+#[Debug]
+#  show_material_props = true
+#  show_execution_order = ALWAYS
+#[]
