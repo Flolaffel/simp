@@ -31,31 +31,35 @@ public:
   virtual void threadJoin(const UserObject &) override{};
 
 protected:
-  /// The name of the pseudo-density variable
-  const VariableName _design_density_name;
-  /// The elasticity compliance sensitivity name
-  const VariableName _compliance_sensitivity_name;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The pseudo-density variable
   MooseWritableVariable * _physical_density;
+  /// The compliance sensitivity name
+  const VariableName _compliance_sensitivity_name;
   /// The filtered compliance sensitivity variable
   const MooseWritableVariable * _compliance_sensitivity;
+  /// The volume sensitivity name
+  const VariableName _volume_sensitivity_name;
+  /// The filtered volume sensitivity variable
+  const MooseWritableVariable * _volume_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
 
 private:
   struct ElementData
   {
-    Real old_density;
-    Real sensitivity;
+    Real current_density;
+    Real compliance_sensitivity;
+    Real volume_sensitivity;
     Real volume;
     Real new_design_density;
     Real new_phys_density;
     ElementData() = default;
-    ElementData(Real dens, Real sens, Real vol, Real new_dens, Real filt_dens)
-      : old_density(dens),
-        sensitivity(sens),
+    ElementData(Real dens, Real dc, Real dv, Real vol, Real new_dens, Real filt_dens)
+      : current_density(dens),
+        compliance_sensitivity(dc),
+        volume_sensitivity(dv),
         volume(vol),
         new_design_density(new_dens),
         new_phys_density(filt_dens)
@@ -73,7 +77,7 @@ private:
    */
   void performOptimCritLoop();
 
-  Real computeUpdatedDensity(Real current_density, Real dc, Real lmid);
+  Real computeUpdatedDensity(Real current_density, Real dc, Real dv, Real lmid);
 
   /// Total volume allowed for volume contraint
   Real _total_allowable_volume;
