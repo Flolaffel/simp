@@ -21,10 +21,12 @@ DensityUpdateCustom::validParams()
       "keep the volume constraint satisified.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredParam<VariableName>("compliance_sensitivity",
-                                        "Name of the compliance_sensitivity variable.");
+                                        "Name of the compliance sensitivity variable.");
+  params.addRequiredParam<VariableName>("volume_sensitivity",
+                                        "Name of the volume sensitivity variable.");
   params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
-  params.addParam<Real>("bisection_upper_bound", 1e16, "Upper bound for the bisection algorithm.");
+  params.addParam<Real>("bisection_upper_bound", 1e9, "Upper bound for the bisection algorithm.");
   params.addParam<int>(
       "execution_order_group",
       1,
@@ -38,23 +40,22 @@ DensityUpdateCustom::validParams()
 
 DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   : Filter(parameters),
-    _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _design_density(&writableVariable("design_density")),
+    _physical_density(&writableVariable("physical_density")),
+    _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
     _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
+    _volume_sensitivity_name(getParam<VariableName>("volume_sensitivity")),
+    _volume_sensitivity(&_subproblem.getStandardVariable(_tid, _volume_sensitivity_name)),
     _volume_fraction(getParam<Real>("volume_fraction")),
     _lower_bound(getParam<Real>("bisection_lower_bound")),
     _upper_bound(getParam<Real>("bisection_upper_bound"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
-
-  if (_filter_type == FilterType::DENSITY)
-  {
-    if (!parameters.isParamSetByUser("physical_density"))
-      paramError("physical_density", "No physical_density for density filtering supplied.");
-    else
-      _physical_density = &writableVariable("physical_density");
-  }
+  if (!dynamic_cast<MooseVariableFE<Real> *>(_physical_density))
+    paramError("physical_density", "Physical density must be a finite element variable");
+  if (_filter_type == FilterType::SENSITIVITY)
+    paramError("filter_type", "Sensitivity filtering is not a viable option for density update");
 }
 
 void
@@ -78,9 +79,8 @@ DensityUpdateCustom::execute()
     ElementData & elem_data = elem_data_iter->second;
     dynamic_cast<MooseVariableFE<Real> *>(_design_density)
         ->setNodalValue(elem_data.new_design_density);
-    if (_filter_type == FilterType::DENSITY)
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_phys_density);
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+        ->setNodalValue(elem_data.new_phys_density);
   }
   else
   {
@@ -102,6 +102,7 @@ DensityUpdateCustom::gatherElementData()
           dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
           dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
               ->getElementalValue(elem),
+          dynamic_cast<const MooseVariableFE<Real> *>(_volume_sensitivity)->getElementalValue(elem),
           elem->volume(),
           0,
           0);
@@ -135,10 +136,14 @@ DensityUpdateCustom::performOptimCritLoop()
     for (auto && [id, elem_data] : _elem_data_map)
     {
       // Compute the updated density for the current element
-      Real new_density = computeUpdatedDensity(elem_data.old_density, elem_data.sensitivity, lmid);
-      // Update design density
+      Real new_density = computeUpdatedDensity(elem_data.current_density,
+                                               elem_data.compliance_sensitivity,
+                                               elem_data.volume_sensitivity,
+                                               lmid);
+      // Update design and physical density
       elem_data.new_design_density = new_density;
-      // Add density to vector
+      elem_data.new_phys_density = new_density;
+      // Add design density to vector
       if (_filter_type == FilterType::DENSITY)
         x[id] = new_density;
       else
@@ -156,8 +161,7 @@ DensityUpdateCustom::performOptimCritLoop()
           filt_density += _H[id][j] * x[j];
         }
         filt_density /= _Hs[id];
-        // Update the design and filtered densities for the current element
-        elem_data.new_design_density = x[id];
+        // Update the physical (filtered) density
         elem_data.new_phys_density = filt_density;
         // Update the current total volume
         curr_total_volume += filt_density * elem_data.volume;
@@ -181,7 +185,7 @@ DensityUpdateCustom::performOptimCritLoop()
 
 // Method to compute the updated density for an element
 Real
-DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real lmid)
+DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real dv, Real lmid)
 {
   // Define the maximum allowable change in density
   Real move = 0.2;
@@ -192,7 +196,7 @@ DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real l
                std::max(current_density - move,
                         std::min(1.0,
                                  std::min(current_density + move,
-                                          current_density * std::sqrt(-dc / lmid)))));
+                                          current_density * std::sqrt(-dc / dv / lmid)))));
   // Return the updated density
   return updated_density;
 }
