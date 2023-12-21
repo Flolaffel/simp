@@ -109,7 +109,7 @@ Emin = 1e-9
 
 [Materials]
   [elasticity_tensor]
-    type = ComputeVariableIsotropicElasticityTensor
+    type = ComputeVariableIsotropicElasticityTensorPlanseStress
     youngs_modulus = E_phys
     poissons_ratio = poissons_ratio
     args = 'Emin rho p E0'
@@ -154,7 +154,6 @@ Emin = 1e-9
     design_density = rho
     volume_fraction = ${vol_frac}
     execute_on = TIMESTEP_END
-    execution_order_group = 1
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc (aux variable)
   [calc_sense]
