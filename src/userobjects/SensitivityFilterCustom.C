@@ -27,16 +27,15 @@ SensitivityFilterCustom::validParams()
 }
 
 SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & parameters)
-  : Filter(parameters),
-    _compliance_sensitivity(&writableVariable("compliance_sensitivity")),
-    _design_density_name(getParam<VariableName>("design_density")),
-    _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
+  : Filter(parameters), _compliance_sensitivity(&writableVariable("compliance_sensitivity"))
+// _design_density_name(getParam<VariableName>("design_density")),
+// _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
 {
-  // if (_filter_type == FilterType::SENSITIVITY)
-  // {
-  //   _design_density_name = getParam<VariableName>("design_density");
-  //   _design_density = _subproblem.getStandardVariable(_tid, _design_density_name);
-  // }
+  if (_filter_type == FilterType::SENSITIVITY)
+  {
+    _design_density_name = getParam<VariableName>("design_density");
+    _design_density = &_subproblem.getStandardVariable(_tid, _design_density_name);
+  }
   if (_filter_type == FilterType::DENSITY)
   {
     if (!parameters.isParamSetByUser("volume_sensitivity"))
@@ -98,7 +97,7 @@ SensitivityFilterCustom::gatherElementData()
       {
         ElementData data = ElementData(
             dynamic_cast<MooseVariableFE<Real> *>(_compliance_sensitivity)->getElementalValue(elem),
-            _design_density.getElementalValue(elem),
+            dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
             0,
             0,
             0);

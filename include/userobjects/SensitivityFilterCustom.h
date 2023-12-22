@@ -35,7 +35,7 @@ protected:
   /// Pseudo-density variable name
   VariableName _design_density_name;
   /// The pseudo-density variable
-  MooseVariable & _design_density;
+  MooseVariable * _design_density;
   /// Sensitivity with respect to density
   MooseWritableVariable * _volume_sensitivity;
 
