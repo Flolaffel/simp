@@ -45,7 +45,7 @@ AnalyticComplianceSensitivity::computeQpProperties()
 {
   // Call the parent class's method to compute the strain energy density
   StrainEnergyDensity::computeQpProperties();
-  // dcdp = -power * x^(power-1) * (E0-Emin) * ue^T * k0 * ue
+  // dcdx = -power * x^(power-1) * (E0-Emin) * ue^T * k0 * ue
   _sensitivity[_qp] = -_power[_qp] * std::pow(_design_density[_qp], _power[_qp] - 1) *
                       (_E0[_qp] - _Emin[_qp]) * 2 * _strain_energy_density[_qp] /
                       _youngs_modulus[_qp];
