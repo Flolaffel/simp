@@ -18,7 +18,8 @@ SensitivityFilterCustom::validParams()
 {
   InputParameters params = Filter::validParams();
   params.addClassDescription(
-      "Computes the filtered sensitivity using a radial average user object.");
+      "Computes the filtered compliance/volume sensitivities for "
+      "sensitivity (inputs: x) or density filtering (inputs: dv). ReqInputs: dc, r, mesh");
   params.addRequiredCoupledVar("compliance_sensitivity",
                                "Name of the compliance_sensitivity variable.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
@@ -28,8 +29,6 @@ SensitivityFilterCustom::validParams()
 
 SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & parameters)
   : Filter(parameters), _compliance_sensitivity(&writableVariable("compliance_sensitivity"))
-// _design_density_name(getParam<VariableName>("design_density")),
-// _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
 {
   if (_filter_type == FilterType::SENSITIVITY)
   {

@@ -16,12 +16,14 @@ InputParameters
 DensityUpdateCustom::validParams()
 {
   InputParameters params = Filter::validParams();
-  params.addClassDescription(
-      "Compute updated densities based on sensitivities using an optimality criteria method to "
-      "keep the volume constraint satisified.");
+  params.addClassDescription("Compute updated densities based on sensitivities using OC "
+                             "or MMA (inputs: x_old1/2, low, upp) to "
+                             "keep the volume constraint satisified. Offers density filtering "
+                             "(inputs: r, mesh). ReqInputs: x, dc, dv, vol_frac");
   params.addParam<MooseEnum>(
       "update_scheme", DensityUpdateCustom::getUpdateSchemeEnum(), "The update scheme");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
+  params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
   params.addRequiredParam<VariableName>("compliance_sensitivity",
@@ -44,7 +46,6 @@ DensityUpdateCustom::validParams()
       "number is executed first). Note that negative group numbers may be used to execute groups "
       "before the default (0) group. Please refer to the user object documentation "
       "for ordering of user object execution within a group.");
-  params.addCoupledVar("physical_density", "Physical density variable name.");
   return params;
 }
 
