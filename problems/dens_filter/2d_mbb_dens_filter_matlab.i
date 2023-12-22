@@ -176,7 +176,6 @@ Emin = 1e-9
     filter_type = density
     compliance_sensitivity = Dc
     volume_sensitivity = DV
-    design_density = rho
     radius = ${filter_radius}
     mesh_generator = MeshGenerator
     execute_on = TIMESTEP_END
