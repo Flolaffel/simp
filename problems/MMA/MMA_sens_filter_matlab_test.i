@@ -25,13 +25,13 @@ Emin = 1e-9
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '21 0 0'
+    coord = '${fparse nx} 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 7 0'
+    coord = '0 ${fparse ny} 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator

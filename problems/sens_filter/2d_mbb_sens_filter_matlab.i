@@ -25,13 +25,13 @@ Emin = 1e-9
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '60 0 0'
+    coord = '${fparse nx} 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 20 0'
+    coord = '0 ${fparse ny} 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -165,8 +165,6 @@ Emin = 1e-9
     design_density = rho
     physical_density = rhoPhys
     volume_fraction = ${vol_frac}
-    filter_type = none
-    execute_on = TIMESTEP_END
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc (aux variable)
   [calc_sense]
@@ -176,8 +174,6 @@ Emin = 1e-9
     design_density = rho
     radius = ${filter_radius}
     mesh_generator = MeshGenerator
-    execute_on = TIMESTEP_END
-    force_postaux = true
   []
   #[opt_conv]
   #  type = Terminator
@@ -194,6 +190,7 @@ Emin = 1e-9
   nl_abs_tol = 1e-8
   dt = 1.0
   num_steps = 94
+  #num_steps = 1
 []
 
 [Outputs]
@@ -235,7 +232,7 @@ Emin = 1e-9
   []
 []
 
-#[Debug]
-#  show_material_props = true
-#  show_execution_order = ALWAYS
-#[]
+[Debug]
+  #show_material_props = true
+  #show_execution_order = ALWAYS
+[]
