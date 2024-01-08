@@ -17,13 +17,14 @@ InputParameters
 SensitivityFilterCustom::validParams()
 {
   InputParameters params = Filter::validParams();
-  params.addClassDescription(
-      "Computes the filtered compliance/volume sensitivities for "
-      "sensitivity (inputs: x) or density filtering (inputs: dv). ReqInputs: dc, r, mesh");
+  params.addClassDescription("Computes the filtered compliance/volume sensitivities for "
+                             "sensitivity (inputs: x) or density filtering (inputs: dv). "
+                             "ReqInputs: filt_type, dc, r, mesh");
   params.addRequiredCoupledVar("compliance_sensitivity",
                                "Name of the compliance_sensitivity variable.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
   params.addCoupledVar("volume_sensitivity", "Name of the volume_sensitivity variable.");
+  params.set<bool>("force_postaux") = true;
   return params;
 }
 
