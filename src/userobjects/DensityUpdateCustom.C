@@ -19,7 +19,7 @@ DensityUpdateCustom::validParams()
   params.addClassDescription("Compute updated densities based on sensitivities using OC "
                              "or MMA (inputs: x_old1/2, low, upp) to "
                              "keep the volume constraint satisified. Offers density filtering "
-                             "(inputs: r, mesh). ReqInputs: x, dc, dv, vol_frac");
+                             "(inputs: r, mesh). ReqInputs: x, x_phys, dc, dv, vol_frac");
   params.addParam<MooseEnum>(
       "update_scheme", DensityUpdateCustom::getUpdateSchemeEnum(), "The update scheme");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
