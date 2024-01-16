@@ -157,16 +157,21 @@ private:
                                 std::vector<Real> beta,
                                 std::vector<Real> p0,
                                 std::vector<Real> q0,
-                                std::vector<Real> P,
-                                std::vector<Real> Q,
+                                std::vector<std::vector<Real>> P,
+                                std::vector<std::vector<Real>> Q,
                                 Real a0,
-                                Real a,
-                                Real b,
-                                Real c,
-                                Real d);
+                                std::vector<Real> a,
+                                std::vector<Real> b,
+                                std::vector<Real> c,
+                                std::vector<Real> d);
 
   // Helper functions
   std::vector<Real> AbsVec(std::vector<Real> vector);
   Real NormVec(std::vector<Real> vector);
   std::vector<Real> DensityFilter(std::vector<Real> density);
+
+  Real getDeterminant(std::vector<std::vector<Real>> vector);
+  std::vector<std::vector<Real>> getTranspose(const std::vector<std::vector<Real>> matrix);
+  std::vector<std::vector<Real>> getCofactor(const std::vector<std::vector<Real>> vector);
+  std::vector<std::vector<Real>> getInverse(std::vector<std::vector<Real>> vector);
 };

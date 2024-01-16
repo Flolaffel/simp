@@ -51,9 +51,9 @@ DensityUpdateCustom::validParams()
 
 DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   : Filter(parameters),
-    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateSchemeTest>()),
-    _use_oc(_update_scheme == UpdateSchemeTest::OC),
-    _use_mma(_update_scheme == UpdateSchemeTest::MMA),
+    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateScheme>()),
+    _use_oc(_update_scheme == UpdateScheme::OC),
+    _use_mma(_update_scheme == UpdateScheme::MMA),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density")),
     _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
@@ -264,14 +264,16 @@ DensityUpdateCustom::performMmaLoop()
 
   // Vector variables of size n
   std::vector<Real> xmin(n, 0), xmax(n, 1), xold1(n, 0), xold2(n, 0), low(n, 0), upp(n, 0),
-      xval(n, 0), df0dx(n, 0), dfdx(n, 0);
+      xval(n, 0), df0dx(n, 0);
 
-  // Scalar constants for the case of one constraint (m=1)
+  // Vector variables of size m
+  std::vector<Real> fval(m), a(m, 0), c_MMA(m, 10000), d(m, 0);
+
+  // Matrix variable of size m x n
+  std::vector<std::vector<Real>> dfdx(m, std::vector<Real>(n));
+
+  // Scalar constant
   Real a0 = 1;
-  Real a = 0;
-  Real c_MMA = 10000;
-  Real d = 0;
-  Real fval = 0;
 
   // Loop over all elements to populate the vectors
   for (auto && [id, elem_data] : _elem_data_map)
@@ -280,13 +282,13 @@ DensityUpdateCustom::performMmaLoop()
     xold1[id] = elem_data.old_design_density1;
     xold2[id] = elem_data.old_design_density2;
     df0dx[id] = elem_data.compliance_sensitivity;
-    dfdx[id] = elem_data.volume_sensitivity / (_volume_fraction * n);
+    dfdx[0][id] = elem_data.volume_sensitivity / (_volume_fraction * n);
     low[id] = elem_data.lower;
     upp[id] = elem_data.upper;
-    fval += elem_data.current_physical_density;
+    fval[0] += elem_data.current_physical_density;
   }
-  fval /= _volume_fraction * n;
-  fval -= 1;
+  fval[0] /= _volume_fraction * n;
+  fval[0] -= 1;
 
   /// MMA
 
@@ -351,40 +353,48 @@ DensityUpdateCustom::performMmaLoop()
   }
 
   // Calculations of p0, q0, P, Q and b
-  std::vector<Real> p0(n, 0), q0(n, 0), P(n, 0), Q(n, 0);
-  Real b = 0;
-  Real xmami, xmamieps, xmamiinv, ux1, ux2, xl1, xl2, uxinv, xlinv, pq0, PQ;
+  std::vector<Real> xmami(n), xmamieps(n), xmamiinv(n), ux1(n), ux2(n), xl1(n), xl2(n), uxinv(n),
+      xlinv(n), p0(n), q0(n), pq0(n);
   for (int i = 0; i < n; i++)
   {
-    xmami = xmax[i] - xmin[i];
-    xmamieps = 0.00001 * eeen[i];
-    xmami = std::max(xmami, xmamieps);
-    xmamiinv = eeen[i] / xmami;
-    ux1 = upp[i] - xval[i];
-    ux2 = ux1 * ux1;
-    xl1 = xval[i] - low[i];
-    xl2 = xl1 * xl1;
-    uxinv = eeen[i] / ux1;
-    xlinv = eeen[i] / xl1;
+    xmami[i] = xmax[i] - xmin[i];
+    xmamieps[i] = 0.00001 * eeen[i];
+    xmami[i] = std::max(xmami[i], xmamieps[i]);
+    xmamiinv[i] = eeen[i] / xmami[i];
+    ux1[i] = upp[i] - xval[i];
+    ux2[i] = ux1[i] * ux1[i];
+    xl1[i] = xval[i] - low[i];
+    xl2[i] = xl1[i] * xl1[i];
+    uxinv[i] = eeen[i] / ux1[i];
+    xlinv[i] = eeen[i] / xl1[i];
 
     p0[i] = std::max(df0dx[i], 0.0);
     q0[i] = std::max(-df0dx[i], 0.0);
-    pq0 = 0.001 * (p0[i] + q0[i]) + raa0 * xmamiinv;
-    p0[i] += pq0;
-    q0[i] += pq0;
-    p0[i] *= ux2;
-    q0[i] *= xl2;
-
-    P[i] = std::max(dfdx[i], 0.0);
-    Q[i] = std::max(-dfdx[i], 0.0);
-    PQ = 0.001 * (P[i] + Q[i]) + raa0 * eeem[0] * xmamiinv;
-    P[i] += PQ;
-    Q[i] += PQ;
-    P[i] *= ux2;
-    Q[i] *= xl2;
-    b += P[i] * uxinv + Q[i] * xlinv;
+    pq0[i] = 0.001 * (p0[i] + q0[i]) + raa0 * xmamiinv[i];
+    p0[i] += pq0[i];
+    q0[i] += pq0[i];
+    p0[i] *= ux2[i];
+    q0[i] *= xl2[i];
   }
-  b -= fval;
+
+  std::vector<std::vector<Real>> P(m, std::vector<Real>(n)), Q(m, std::vector<Real>(n));
+  std::vector<Real> b(m, 0);
+  Real PQ;
+  for (int i = 0; i < m; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      P[i][j] = std::max(dfdx[i][j], 0.0);
+      Q[i][j] = std::max(-dfdx[i][j], 0.0);
+      PQ = 0.001 * (P[i][j] + Q[i][j]) + raa0 * eeem[i] * xmamiinv[j];
+      P[i][j] += PQ;
+      Q[i][j] += PQ;
+      P[i][j] *= ux2[j];
+      Q[i][j] *= xl2[j];
+      b[i] += P[i][j] * uxinv[j] + Q[i][j] * xlinv[j];
+    }
+    b[i] -= fval[i];
+  }
 
   // Solving the subproblem by a primal-dual Newton method
   std::vector<Real> new_density =
@@ -416,25 +426,26 @@ DensityUpdateCustom::MmaSubSolve(Real m,
                                  std::vector<Real> beta,
                                  std::vector<Real> p0,
                                  std::vector<Real> q0,
-                                 std::vector<Real> P,
-                                 std::vector<Real> Q,
+                                 std::vector<std::vector<Real>> P,
+                                 std::vector<std::vector<Real>> Q,
                                  Real a0,
-                                 Real a,
-                                 Real b,
-                                 Real c,
-                                 Real d)
+                                 std::vector<Real> a,
+                                 std::vector<Real> b,
+                                 std::vector<Real> c,
+                                 std::vector<Real> d)
 {
   std::vector<Real> een(n, 1);
-  Real eem = 1.0;
-  Real epsi = 1.0;
-  Real epsvecm = epsi * eem;
-  Real y = eem;
+  std::vector<Real> eem(m, 1);
+  Real epsi = 1;
+  std::vector<Real> epsvecn(n, 1);
+  std::vector<Real> epsvecm(m, 1);
+  std::vector<Real> y(m, 1);
   Real z = 1.0;
-  Real lam = eem;
-  Real mu = std::max(eem, 0.5 * c);
+  std::vector<Real> lam(m, 1);
   Real zet = 1;
-  Real s = eem;
-  std::vector<Real> epsvecn(n, 0), x(n, 0), xsi(n, 0), eta(n, 0);
+  std::vector<Real> s(m, 1);
+
+  std::vector<Real> x(n, 0), xsi(n, 0), eta(n, 0);
   for (int i = 0; i < n; i++)
   {
     epsvecn[i] = epsi * een[i];
@@ -445,12 +456,14 @@ DensityUpdateCustom::MmaSubSolve(Real m,
     eta[i] = std::max(eta[i], een[i]);
   }
 
+  std::vector<Real> mu(m);
+  for (int i = 0; i < m; i++)
+    mu[i] = std::max(eem[i], 0.5 * c[i]);
+
   while (epsi > epsimin)
   {
-    epsvecm = epsi * eem;
     std::vector<Real> ux1(n, 0), xl1(n, 0), ux2(n, 0), xl2(n, 0), uxinv1(n, 0), xlinv1(n, 0),
-        plam(n, 0), qlam(n, 0), dpsidx(n, 0), rex(n, 0), rexsi(n, 0), reeta(n, 0);
-    Real gvec = 0;
+        rexsi(n, 0), reeta(n, 0);
     for (int i = 0; i < n; i++)
     {
       epsvecn[i] = epsi * een[i];
@@ -460,32 +473,62 @@ DensityUpdateCustom::MmaSubSolve(Real m,
       xl2[i] = xl1[i] * xl1[i];
       uxinv1[i] = een[i] / ux1[i];
       xlinv1[i] = een[i] / xl1[i];
-      plam[i] = p0[i] + P[i] * lam;
-      qlam[i] = q0[i] + Q[i] * lam;
-      gvec += P[i] * uxinv1[i] + Q[i] * xlinv1[i];
-      dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
-      rex[i] = dpsidx[i] - xsi[i] + eta[i];
       rexsi[i] = xsi[i] * (x[i] - alpha[i]) - epsvecn[i];
       reeta[i] = eta[i] * (beta[i] - x[i]) - epsvecn[i];
     }
-    Real rey = c + d * y - mu - lam;
-    Real rez = a0 - zet - a * lam;
-    Real relam = gvec - a * z - y + s - b;
-    Real remu = mu * y - epsvecm;
+
+    std::vector<Real> plam(n), qlam(n);
+    std::vector<Real> gvec(m, 0);
+    for (int i = 0; i < m; i++)
+    {
+      epsvecm[i] = epsi * eem[i];
+      for (int j = 0; j < n; j++)
+      {
+        if (i == 0)
+        {
+          plam[j] = p0[j];
+          qlam[j] = q0[j];
+        }
+        plam[j] += P[i][j] * lam[i];
+        qlam[j] += Q[i][j] * lam[i];
+        gvec[i] += P[i][j] * uxinv1[j] + Q[i][j] * xlinv1[j];
+      }
+    }
+
+    std::vector<Real> dpsidx(n, 0), rex(n, 0);
+    for (int i = 0; i < n; i++)
+    {
+      dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
+      rex[i] = dpsidx[i] - xsi[i] + eta[i];
+    }
+
+    std::vector<Real> rey(m), relam(m), remu(m), res(m);
+    Real rez = 0;
+    for (int i = 0; i < m; i++)
+    {
+      rey[i] = c[i] + d[i] * y[i] - mu[i] - lam[i];
+      relam[i] = gvec[i] - a[i] * z - y[i] + s[i] - b[i];
+      remu[i] = mu[i] * y[i] - epsvecm[i];
+      res[i] = lam[i] * s[i] - epsvecm[i];
+      rez -= a[i] * lam[i];
+    }
+    rez = rez + a0 - zet;
     Real rezet = zet * z - epsi;
-    Real res = lam * s - epsvecm;
 
     std::vector<Real> residu1;
-    residu1.reserve(rex.size() + 2);
+    residu1.reserve(rex.size() + rey.size() + 1);
     residu1.assign(std::begin(rex), std::end(rex));
-    residu1.push_back(rey);
+    residu1.insert(std::end(residu1), std::begin(rey), std::end(rey));
     residu1.push_back(rez);
 
-    std::vector<Real> residu2{relam};
-    residu2.reserve(residu2.size() + rexsi.size() + reeta.size() + 3);
+    std::vector<Real> residu2;
+    residu2.reserve(relam.size() + residu2.size() + rexsi.size() + reeta.size() + 3);
+    residu2.assign(std::begin(relam), std::end(relam));
     residu2.insert(std::end(residu2), std::begin(rexsi), std::end(rexsi));
     residu2.insert(std::end(residu2), std::begin(reeta), std::end(reeta));
-    residu2.insert(std::end(residu2), {remu, rezet, res});
+    residu2.insert(std::end(residu2), std::begin(remu), std::end(remu));
+    residu2.push_back(rezet);
+    residu2.insert(std::end(residu2), std::begin(res), std::end(res));
 
     std::vector<Real> residu;
     residu.reserve(residu1.size() + residu2.size());
@@ -499,9 +542,9 @@ DensityUpdateCustom::MmaSubSolve(Real m,
     while (residumax > 0.9 * epsi && ittt < 200)
     {
       ittt++;
-      std::vector<Real> ux3(n, 0), xl3(n, 0), uxinv2(n, 0), xlinv2(n, 0), GG(n, 0), delx(n, 0),
-          diagx(n, 0), diagxinv(n, 0);
-      gvec = 0.0;
+      std::vector<std::vector<Real>> GG(m, std::vector<Real>(n));
+      std::vector<Real> ux3(n, 0), xl3(n, 0), uxinv2(n, 0), xlinv2(n, 0), delx(n, 0), diagx(n, 0),
+          diagxinv(n, 0);
       for (int i = 0; i < n; i++)
       {
         ux1[i] = upp[i] - x[i];
@@ -514,46 +557,108 @@ DensityUpdateCustom::MmaSubSolve(Real m,
         xlinv1[i] = een[i] / xl1[i];
         uxinv2[i] = een[i] / ux2[i];
         xlinv2[i] = een[i] / xl2[i];
-        plam[i] = p0[i] + P[i] * lam;
-        qlam[i] = q0[i] + Q[i] * lam;
-        gvec += P[i] * uxinv1[i] + Q[i] * xlinv1[i];
-        GG[i] = P[i] * uxinv2[i] - Q[i] * xlinv2[i];
+      }
+
+      std::fill(std::begin(plam), std::end(plam), 0);
+      std::fill(std::begin(qlam), std::end(qlam), 0);
+      std::fill(std::begin(gvec), std::end(gvec), 0);
+      for (int i = 0; i < m; i++)
+      {
+        for (int j = 0; j < n; j++)
+        {
+          if (i == 0)
+          {
+            plam[j] = p0[j];
+            qlam[j] = q0[j];
+          }
+          plam[j] += P[i][j] * lam[i];
+          qlam[j] += Q[i][j] * lam[i];
+          gvec[i] += P[i][j] * uxinv1[j] + Q[i][j] * xlinv1[j];
+          GG[i][j] = P[i][j] * uxinv2[j] - Q[i][j] * xlinv2[j];
+        }
+      }
+
+      for (int i = 0; i < n; i++)
+      {
         dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
         delx[i] = dpsidx[i] - epsvecn[i] / (x[i] - alpha[i]) + epsvecn[i] / (beta[i] - x[i]);
         diagx[i] = plam[i] / ux3[i] + qlam[i] / xl3[i];
         diagx[i] = 2 * diagx[i] + xsi[i] / (x[i] - alpha[i]) + eta[i] / (beta[i] - x[i]);
         diagxinv[i] = een[i] / diagx[i];
       }
-      Real dely = c + d * y - lam - epsvecm / y;
-      Real delz = a0 - a * lam - epsi / z;
-      Real dellam = gvec - a * z - y - b + epsvecm / lam;
-      Real diagy = d + mu / y;
-      Real diagyinv = eem / diagy;
-      Real diaglam = s / lam;
-      Real diaglamyi = diaglam + diagyinv;
 
+      std::vector<Real> dely(m), dellam(m), diagy(m), diagyinv(m), diaglam(m), diaglamyi(m);
+      Real delz = 0;
+      for (int i = 0; i < m; i++)
+      {
+        dely[i] = c[i] + d[i] * y[i] - lam[i] - epsvecm[i] / y[i];
+        dellam[i] = gvec[i] - a[i] * z - y[i] - b[i] + epsvecm[i] / lam[i];
+        diagy[i] = d[i] + mu[i] / y[i];
+        diagyinv[i] = eem[i] / diagy[i];
+        diaglam[i] = s[i] / lam[i];
+        diaglamyi[i] = diaglam[i] + diagyinv[i];
+        delz -= a[i] * lam[i];
+      }
+      delz = delz + a0 - epsi / z;
+
+      std::vector<std::vector<Real>> Alam(m, std::vector<Real>(m));
       std::vector<Real> dx(n, 0);
-      Real dlam, dz;
+      std::vector<Real> dlam;
+      Real dz;
       if (m < n)
       {
-        Real blam = dellam + dely / diagy;
-        Real Alam = diaglamyi;
-        for (int i = 0; i < n; i++)
+        std::vector<Real> blam(m);
+        for (int i = 0; i < m; i++)
         {
-          blam -= GG[i] * (delx[i] / diagx[i]);
-          Alam += GG[i] * diagxinv[i] * GG[i];
+          blam[i] = dellam[i] + dely[i] / diagy[i];
+          for (int j = 0; j < m; j++)
+          {
+            if (i == j)
+              Alam[i][j] = diaglamyi[i];
+            for (int k = 0; k < n; k++)
+            {
+              blam[i] -= GG[i][k] * (delx[k] / diagx[k]);
+              Alam[i][j] += GG[i][k] * diagxinv[k] * GG[j][k];
+            }
+          }
         }
-        std::vector<Real> bb{blam, delz};
-        std::vector<Real> AA{Alam, a, a, -zet / z};
-        Real factor = 1 / ((AA[0] * AA[3]) - (AA[1] * AA[2]));
-        std::vector<Real> AAinv{factor * AA[3], factor * -AA[1], factor * -AA[2], factor * AA[0]};
-        std::vector<Real> solut{AAinv[0] * bb[0] + AAinv[1] * bb[1],
-                                AAinv[2] * bb[0] + AAinv[3] * bb[1]};
-        dlam = solut[0];
-        dz = solut[1];
+
+        std::vector<Real> bb = blam;
+        bb.push_back(delz);
+        std::vector<std::vector<Real>> AA(m + 1, std::vector<Real>(m + 1));
+        for (int i = 0; i < m + 1; i++)
+        {
+          for (int j = 0; j < m + 1; j++)
+          {
+            if (i < m && j < m)
+              AA[i][j] = Alam[i][j];
+            else if (i == m && j == m)
+              AA[i][j] = -zet / z;
+            else if (i < j)
+              AA[i][j] = a[i];
+            else if (i > j)
+              AA[i][j] = a[j];
+          }
+        }
+        std::vector<std::vector<Real>> AAinv = getInverse(AA);
+        std::vector<Real> solut(m + 1);
+        for (unsigned int i = 0; i < AAinv.size(); i++)
+        {
+          for (unsigned int j = 0; j < AAinv[0].size(); j++)
+          {
+            solut[i] += AAinv[i][j] * bb[j];
+          }
+        }
+        dlam.assign(std::begin(solut), std::next(std::begin(solut), m));
+        dz = solut[m];
         for (int i = 0; i < n; i++)
         {
-          dx[i] = -delx[i] / diagx[i] - (GG[i] * dlam) / diagx[i];
+          Real temp = 0;
+          for (int j = 0; j < m; j++)
+          {
+            temp += GG[j][i] * dlam[j];
+          }
+          dx[i] = -delx[i] / diagx[i] - temp / diagx[i];
         }
       }
       else
@@ -567,22 +672,39 @@ DensityUpdateCustom::MmaSubSolve(Real m,
         dxsi[i] = -xsi[i] + epsvecn[i] / (x[i] - alpha[i]) - (xsi[i] * dx[i]) / (x[i] - alpha[i]);
         deta[i] = -eta[i] + epsvecn[i] / (beta[i] - x[i]) + (eta[i] * dx[i]) / (beta[i] - x[i]);
       }
-      Real dy = -dely / diagy + dlam / diagy;
-      Real dmu = -mu + epsvecm / y - (mu * dy) / y;
-      Real dzet = -zet + epsi / z - zet * dz / z;
-      Real ds = -s + epsvecm / lam - (s * dlam) / lam;
 
-      std::vector<Real> xx{y, z, lam};
-      xx.reserve(xx.size() + xsi.size() + eta.size() + 3);
+      std::vector<Real> dy(m), dmu(m), ds(m);
+      for (int i = 0; i < m; i++)
+      {
+        dy[i] = -dely[i] / diagy[i] + dlam[i] / diagy[i];
+        dmu[i] = -mu[i] + epsvecm[i] / y[i] - (mu[i] * dy[i]) / y[i];
+        ds[i] = -s[i] + epsvecm[i] / lam[i] - (s[i] * dlam[i]) / lam[i];
+      }
+
+      Real dzet = -zet + epsi / z - zet * dz / z;
+
+      std::vector<Real> xx;
+      xx.reserve(y.size() + 1 + lam.size() + xsi.size() + eta.size() + mu.size() + 1 + s.size());
+      xx.assign(std::begin(y), std::end(y));
+      xx.push_back(z);
+      xx.insert(std::end(xx), std::begin(lam), std::end(lam));
       xx.insert(std::end(xx), std::begin(xsi), std::end(xsi));
       xx.insert(std::end(xx), std::begin(eta), std::end(eta));
-      xx.insert(std::end(xx), {mu, zet, s});
+      xx.insert(std::end(xx), std::begin(mu), std::end(mu));
+      xx.push_back(zet);
+      xx.insert(std::end(xx), std::begin(s), std::end(s));
 
-      std::vector<Real> dxx{dy, dz, dlam};
-      dxx.reserve(dxx.size() + dxsi.size() + deta.size() + 3);
+      std::vector<Real> dxx;
+      dxx.reserve(dy.size() + 1 + dlam.size() + dxsi.size() + deta.size() + dmu.size() + 1 +
+                  ds.size());
+      dxx.assign(std::begin(dy), std::end(dy));
+      dxx.push_back(dz);
+      dxx.insert(std::end(dxx), std::begin(dlam), std::end(dlam));
       dxx.insert(std::end(dxx), std::begin(dxsi), std::end(dxsi));
       dxx.insert(std::end(dxx), std::begin(deta), std::end(deta));
-      dxx.insert(std::end(dxx), {dmu, dzet, ds});
+      dxx.insert(std::end(dxx), std::begin(dmu), std::end(dmu));
+      dxx.push_back(dzet);
+      dxx.insert(std::end(dxx), std::begin(ds), std::end(ds));
 
       std::vector<Real> stepxx(xx.size());
       for (unsigned int i = 0; i < xx.size(); i++)
@@ -604,14 +726,14 @@ DensityUpdateCustom::MmaSubSolve(Real m,
       Real steg = 1.0 / stminv;
 
       std::vector<Real> xold = x;
-      Real yold = y;
+      std::vector<Real> yold = y;
       Real zold = z;
-      Real lamold = lam;
+      std::vector<Real> lamold = lam;
       std::vector<Real> xsiold = xsi;
       std::vector<Real> etaold = eta;
-      Real muold = mu;
+      std::vector<Real> muold = mu;
       Real zetold = zet;
-      Real sold = s;
+      std::vector<Real> sold = s;
 
       int itto = 0;
       Real resinew = 2 * residunorm;
@@ -624,44 +746,74 @@ DensityUpdateCustom::MmaSubSolve(Real m,
           xsi[i] = xsiold[i] + steg * dxsi[i];
           eta[i] = etaold[i] + steg * deta[i];
         }
-        y = yold + steg * dy;
+        for (int i = 0; i < m; i++)
+        {
+          y[i] = yold[i] + steg * dy[i];
+          lam[i] = lamold[i] + steg * dlam[i];
+          mu[i] = muold[i] + steg * dmu[i];
+          s[i] = sold[i] + steg * ds[i];
+        }
         z = zold + steg * dz;
-        lam = lamold + steg * dlam;
-        mu = muold + steg * dmu;
         zet = zetold + steg * dzet;
-        s = sold + steg * ds;
-        gvec = 0;
+
         for (int i = 0; i < n; i++)
         {
+          epsvecn[i] = epsi * een[i];
           ux1[i] = upp[i] - x[i];
           xl1[i] = x[i] - low[i];
           ux2[i] = ux1[i] * ux1[i];
           xl2[i] = xl1[i] * xl1[i];
           uxinv1[i] = een[i] / ux1[i];
           xlinv1[i] = een[i] / xl1[i];
-          plam[i] = p0[i] + P[i] * lam;
-          qlam[i] = q0[i] + Q[i] * lam;
-          gvec += P[i] * uxinv1[i] + Q[i] * xlinv1[i];
-          dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
-          rex[i] = dpsidx[i] - xsi[i] + eta[i];
           rexsi[i] = xsi[i] * (x[i] - alpha[i]) - epsvecn[i];
           reeta[i] = eta[i] * (beta[i] - x[i]) - epsvecn[i];
         }
-        rey = c + d * y - mu - lam;
-        rez = a0 - zet - a * lam;
-        relam = gvec - a * z - y + s - b;
-        remu = mu * y - epsvecm;
+
+        std::fill(std::begin(plam), std::end(plam), 0);
+        std::fill(std::begin(qlam), std::end(qlam), 0);
+        std::fill(std::begin(gvec), std::end(gvec), 0);
+        for (int i = 0; i < m; i++)
+        {
+          for (int j = 0; j < n; j++)
+          {
+            if (i == 0)
+            {
+              plam[j] = p0[j];
+              qlam[j] = q0[j];
+            }
+            plam[j] += P[i][j] * lam[i];
+            qlam[j] += Q[i][j] * lam[i];
+            gvec[i] += P[i][j] * uxinv1[j] + Q[i][j] * xlinv1[j];
+          }
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+          dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
+          rex[i] = dpsidx[i] - xsi[i] + eta[i];
+        }
+
+        for (int i = 0; i < m; i++)
+        {
+          rey[i] = c[i] + d[i] * y[i] - mu[i] - lam[i];
+          relam[i] = gvec[i] - a[i] * z - y[i] + s[i] - b[i];
+          remu[i] = mu[i] * y[i] - epsvecm[i];
+          res[i] = lam[i] * s[i] - epsvecm[i];
+          rez -= a[i] * lam[i];
+        }
+        rez = rez + a0 - zet;
         rezet = zet * z - epsi;
-        res = lam * s - epsvecm;
 
         residu1.assign(std::begin(rex), std::end(rex));
-        residu1.push_back(rey);
+        residu1.insert(std::end(residu1), std::begin(rey), std::end(rey));
         residu1.push_back(rez);
 
-        residu2.assign(1, relam);
+        residu2.assign(std::begin(relam), std::end(relam));
         residu2.insert(std::end(residu2), std::begin(rexsi), std::end(rexsi));
         residu2.insert(std::end(residu2), std::begin(reeta), std::end(reeta));
-        residu2.insert(std::end(residu2), {remu, rezet, res});
+        residu2.insert(std::end(residu2), std::begin(remu), std::end(remu));
+        residu2.push_back(rezet);
+        residu2.insert(std::end(residu2), std::begin(res), std::end(res));
 
         residu.assign(std::begin(residu1), std::end(residu1));
         residu.insert(std::end(residu), std::begin(residu2), std::end(residu2));
@@ -721,4 +873,140 @@ DensityUpdateCustom::getUpdateSchemeEnum()
 {
   auto filter = MooseEnum("OC MMA", "OC");
   return filter;
+}
+
+Real
+DensityUpdateCustom::getDeterminant(std::vector<std::vector<Real>> vec)
+{
+  // if (vec.size() != vec[0].size())
+  // {
+  //   throw std::runtime_error("Matrix is not quadratic");
+  // }
+  int dimension = vec.size();
+
+  if (dimension == 0)
+  {
+    return 1;
+  }
+
+  if (dimension == 1)
+  {
+    return vec[0][0];
+  }
+
+  // Formula for 2x2-matrix
+  if (dimension == 2)
+  {
+    return vec[0][0] * vec[1][1] - vec[0][1] * vec[1][0];
+  }
+
+  Real result = 0;
+  int sign = 1;
+  for (int i = 0; i < dimension; i++)
+  {
+
+    // Submatrix
+    std::vector<std::vector<Real>> subVec(dimension - 1, std::vector<Real>(dimension - 1));
+    for (int m = 1; m < dimension; m++)
+    {
+      int z = 0;
+      for (int n = 0; n < dimension; n++)
+      {
+        if (n != i)
+        {
+          subVec[m - 1][z] = vec[m][n];
+          z++;
+        }
+      }
+    }
+
+    // recursive call
+    result = result + sign * vec[0][i] * getDeterminant(subVec);
+    sign = -sign;
+  }
+
+  return result;
+}
+
+std::vector<std::vector<Real>>
+DensityUpdateCustom::getTranspose(const std::vector<std::vector<Real>> matrix)
+{
+
+  // Transpose-matrix: height = width(matrix), width = height(matrix)
+  std::vector<std::vector<Real>> solution(matrix[0].size(), std::vector<Real>(matrix.size()));
+
+  // Filling solution-matrix
+  for (unsigned int i = 0; i < matrix.size(); i++)
+  {
+    for (unsigned int j = 0; j < matrix[0].size(); j++)
+    {
+      solution[j][i] = matrix[i][j];
+    }
+  }
+  return solution;
+}
+
+std::vector<std::vector<Real>>
+DensityUpdateCustom::getCofactor(const std::vector<std::vector<Real>> vec)
+{
+  // if (vect.size() != vect[0].size())
+  // {
+  //   throw std::runtime_error("Matrix is not quadratic");
+  // }
+
+  std::vector<std::vector<Real>> solution(vec.size(), std::vector<Real>(vec.size()));
+  std::vector<std::vector<Real>> subVect(vec.size() - 1, std::vector<Real>(vec.size() - 1));
+
+  for (unsigned int i = 0; i < vec.size(); i++)
+  {
+    for (unsigned int j = 0; j < vec[0].size(); j++)
+    {
+      int p = 0;
+      for (unsigned int x = 0; x < vec.size(); x++)
+      {
+        if (x == i)
+        {
+          continue;
+        }
+        int q = 0;
+
+        for (unsigned int y = 0; y < vec.size(); y++)
+        {
+          if (y == j)
+          {
+            continue;
+          }
+
+          subVect[p][q] = vec[x][y];
+          q++;
+        }
+        p++;
+      }
+      solution[i][j] = std::pow(-1, i + j) * getDeterminant(subVect);
+    }
+  }
+  return solution;
+}
+
+std::vector<std::vector<Real>>
+DensityUpdateCustom::getInverse(std::vector<std::vector<Real>> vec)
+{
+  // if (getDeterminant(vect) == 0)
+  // {
+  //   throw std::runtime_error("Determinant is 0");
+  // }
+  Real d = 1.0 / getDeterminant(vec);
+  std::vector<std::vector<Real>> solution(vec.size(), std::vector<Real>(vec.size()));
+
+  solution = getTranspose(getCofactor(vec));
+
+  for (unsigned int i = 0; i < vec.size(); i++)
+  {
+    for (unsigned int j = 0; j < vec.size(); j++)
+    {
+      solution[i][j] *= d;
+    }
+  }
+
+  return solution;
 }
