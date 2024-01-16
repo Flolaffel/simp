@@ -40,6 +40,10 @@ public:
 protected:
   /// The update scheme
   const UpdateScheme _update_scheme;
+  /// Flag for OC
+  const bool _use_oc;
+  /// Flag for MMA
+  const bool _use_mma;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The old pseudo-density variable
@@ -130,7 +134,7 @@ private:
   /**
    * Performs the optimality criterion loop (bisection)
    */
-  void performOptimCritLoop();
+  void performOcLoop();
 
   Real computeUpdatedDensity(Real current_density, Real dc, Real dv, Real lmid);
 

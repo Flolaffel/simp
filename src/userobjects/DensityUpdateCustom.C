@@ -51,7 +51,9 @@ DensityUpdateCustom::validParams()
 
 DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   : Filter(parameters),
-    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateScheme>()),
+    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateSchemeTest>()),
+    _use_oc(_update_scheme == UpdateSchemeTest::OC),
+    _use_mma(_update_scheme == UpdateSchemeTest::MMA),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density")),
     _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
@@ -67,12 +69,12 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
   if (_filter_type == FilterType::SENSITIVITY)
     paramError("filter_type", "Sensitivity filtering is not a viable option for density update");
 
-  if (_update_scheme == UpdateScheme::OC)
+  if (_use_oc)
   {
     _lower_bound = getParam<Real>("bisection_lower_bound");
     _upper_bound = getParam<Real>("bisection_upper_bound");
   }
-  else if (_update_scheme == UpdateScheme::MMA)
+  else if (_use_mma)
   {
     _old_design_density1 = &writableVariable("old_design_density1");
     _old_design_density2 = &writableVariable("old_design_density2");
@@ -87,9 +89,9 @@ DensityUpdateCustom::initialize()
   gatherElementData();
   if (_filter_type == FilterType::DENSITY)
     Filter::prepareFilter();
-  if (_update_scheme == UpdateScheme::OC)
-    performOptimCritLoop();
-  else if (_update_scheme == UpdateScheme::MMA)
+  if (_use_oc)
+    performOcLoop();
+  else if (_use_mma)
     performMmaLoop();
 }
 
@@ -107,7 +109,7 @@ DensityUpdateCustom::execute()
         ->setNodalValue(elem_data.new_design_density);
     dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
         ->setNodalValue(elem_data.new_phys_density);
-    if (_update_scheme == UpdateScheme::MMA)
+    if (_use_mma)
     {
       dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
           ->setNodalValue(elem_data.current_design_density);
@@ -134,7 +136,7 @@ DensityUpdateCustom::gatherElementData()
     {
       dof_id_type elem_id = elem->id();
       ElementData data;
-      if (_update_scheme == UpdateScheme::OC)
+      if (_use_oc)
       {
         data = ElementData(
             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
@@ -153,7 +155,7 @@ DensityUpdateCustom::gatherElementData()
             0,
             0);
       }
-      else if (_update_scheme == UpdateScheme::MMA)
+      else if (_use_mma)
       {
         data = ElementData(
             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
@@ -181,7 +183,7 @@ DensityUpdateCustom::gatherElementData()
 }
 
 void
-DensityUpdateCustom::performOptimCritLoop()
+DensityUpdateCustom::performOcLoop()
 {
   // Initialize the lower and upper bounds for the bisection method
   Real l1 = _lower_bound;
