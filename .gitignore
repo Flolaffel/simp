@@ -327,5 +327,5 @@ share/
 .idea/
 
 todo/
-*_test.i
-*_dbg.i
+**/[Tt]est*
+**/[Dd]bg*
