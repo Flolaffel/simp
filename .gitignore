@@ -327,3 +327,5 @@ share/
 .idea/
 
 todo/
+*_test.i
+*_dbg.i
