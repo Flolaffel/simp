@@ -125,7 +125,7 @@ private:
    */
   void gatherElementData();
 
-  /// Total volume allowed for volume contraint
+  /// Total volume allowed for volume constraint
   Real _total_allowable_volume;
 
   /// Data structure to hold old density, sensitivity, volume, current density.
@@ -165,13 +165,5 @@ private:
                                 std::vector<Real> c,
                                 std::vector<Real> d);
 
-  // Helper functions
-  std::vector<Real> AbsVec(std::vector<Real> vector);
-  Real NormVec(std::vector<Real> vector);
   std::vector<Real> DensityFilter(std::vector<Real> density);
-
-  Real getDeterminant(std::vector<std::vector<Real>> vector);
-  std::vector<std::vector<Real>> getTranspose(const std::vector<std::vector<Real>> matrix);
-  std::vector<std::vector<Real>> getCofactor(const std::vector<std::vector<Real>> vector);
-  std::vector<std::vector<Real>> getInverse(std::vector<std::vector<Real>> vector);
 };

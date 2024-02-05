@@ -8,6 +8,7 @@
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
 #include "DensityUpdateCustom.h"
+#include "vector.h"
 #include <algorithm>
 
 registerMooseObject("OptimizationApp", DensityUpdateCustom);
@@ -831,28 +832,6 @@ DensityUpdateCustom::MmaSubSolve(Real m,
 }
 
 std::vector<Real>
-DensityUpdateCustom::AbsVec(std::vector<Real> vector)
-{
-  for (unsigned int i = 0; i < vector.size(); i++)
-  {
-    if (vector[i] < 0)
-      vector[i] *= -1;
-  }
-  return vector;
-}
-
-Real
-DensityUpdateCustom::NormVec(std::vector<Real> vector)
-{
-  Real accum = 0.0;
-  for (unsigned int i = 0; i < vector.size(); i++)
-  {
-    accum += vector[i] * vector[i];
-  }
-  return std::sqrt(accum);
-}
-
-std::vector<Real>
 DensityUpdateCustom::DensityFilter(std::vector<Real> density)
 {
   unsigned int n_el = density.size();
@@ -873,140 +852,4 @@ DensityUpdateCustom::getUpdateSchemeEnum()
 {
   auto filter = MooseEnum("OC MMA", "OC");
   return filter;
-}
-
-Real
-DensityUpdateCustom::getDeterminant(std::vector<std::vector<Real>> vec)
-{
-  // if (vec.size() != vec[0].size())
-  // {
-  //   throw std::runtime_error("Matrix is not quadratic");
-  // }
-  int dimension = vec.size();
-
-  if (dimension == 0)
-  {
-    return 1;
-  }
-
-  if (dimension == 1)
-  {
-    return vec[0][0];
-  }
-
-  // Formula for 2x2-matrix
-  if (dimension == 2)
-  {
-    return vec[0][0] * vec[1][1] - vec[0][1] * vec[1][0];
-  }
-
-  Real result = 0;
-  int sign = 1;
-  for (int i = 0; i < dimension; i++)
-  {
-
-    // Submatrix
-    std::vector<std::vector<Real>> subVec(dimension - 1, std::vector<Real>(dimension - 1));
-    for (int m = 1; m < dimension; m++)
-    {
-      int z = 0;
-      for (int n = 0; n < dimension; n++)
-      {
-        if (n != i)
-        {
-          subVec[m - 1][z] = vec[m][n];
-          z++;
-        }
-      }
-    }
-
-    // recursive call
-    result = result + sign * vec[0][i] * getDeterminant(subVec);
-    sign = -sign;
-  }
-
-  return result;
-}
-
-std::vector<std::vector<Real>>
-DensityUpdateCustom::getTranspose(const std::vector<std::vector<Real>> matrix)
-{
-
-  // Transpose-matrix: height = width(matrix), width = height(matrix)
-  std::vector<std::vector<Real>> solution(matrix[0].size(), std::vector<Real>(matrix.size()));
-
-  // Filling solution-matrix
-  for (unsigned int i = 0; i < matrix.size(); i++)
-  {
-    for (unsigned int j = 0; j < matrix[0].size(); j++)
-    {
-      solution[j][i] = matrix[i][j];
-    }
-  }
-  return solution;
-}
-
-std::vector<std::vector<Real>>
-DensityUpdateCustom::getCofactor(const std::vector<std::vector<Real>> vec)
-{
-  // if (vect.size() != vect[0].size())
-  // {
-  //   throw std::runtime_error("Matrix is not quadratic");
-  // }
-
-  std::vector<std::vector<Real>> solution(vec.size(), std::vector<Real>(vec.size()));
-  std::vector<std::vector<Real>> subVect(vec.size() - 1, std::vector<Real>(vec.size() - 1));
-
-  for (unsigned int i = 0; i < vec.size(); i++)
-  {
-    for (unsigned int j = 0; j < vec[0].size(); j++)
-    {
-      int p = 0;
-      for (unsigned int x = 0; x < vec.size(); x++)
-      {
-        if (x == i)
-        {
-          continue;
-        }
-        int q = 0;
-
-        for (unsigned int y = 0; y < vec.size(); y++)
-        {
-          if (y == j)
-          {
-            continue;
-          }
-
-          subVect[p][q] = vec[x][y];
-          q++;
-        }
-        p++;
-      }
-      solution[i][j] = std::pow(-1, i + j) * getDeterminant(subVect);
-    }
-  }
-  return solution;
-}
-
-std::vector<std::vector<Real>>
-DensityUpdateCustom::getInverse(std::vector<std::vector<Real>> vec)
-{
-  // if (getDeterminant(vect) == 0)
-  // {
-  //   throw std::runtime_error("Determinant is 0");
-  // }
-  Real d = 1.0 / getDeterminant(vec);
-  std::vector<std::vector<Real>> solution(vec.size(), std::vector<Real>(vec.size()));
-
-  solution = getTranspose(getCofactor(vec));
-
-  for (unsigned int i = 0; i < vec.size(); i++)
-  {
-    for (unsigned int j = 0; j < vec.size(); j++)
-    {
-      solution[i][j] *= d;
-    }
-  }
-
-  return solution;
 }
