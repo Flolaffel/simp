@@ -55,11 +55,11 @@ protected:
   /// The compliance sensitivity name
   const VariableName _compliance_sensitivity_name;
   /// The filtered compliance sensitivity variable
-  const MooseWritableVariable * _compliance_sensitivity;
+  const MooseVariable * _compliance_sensitivity;
   /// The volume sensitivity name
   const VariableName _volume_sensitivity_name;
   /// The filtered volume sensitivity variable
-  const MooseWritableVariable * _volume_sensitivity;
+  const MooseVariable * _volume_sensitivity;
   /// The volume fraction to be enforced
   const Real _volume_fraction;
   /// Column vector with the lower asymptotes from the previous iteration (provided that iter>1)
