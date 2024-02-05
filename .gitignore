@@ -327,5 +327,5 @@ share/
 .idea/
 
 todo/
-**/[Tt]est*
-**/[Dd]bg*
+**/*[Tt]est*
+**/*[Dd]bg*
