@@ -324,8 +324,20 @@ share/
 /tutorials/tutorial01_app_development/*/babbler.yaml
 /tutorials/darcy_thermo_mech/*/darcy_thermo_mech.yaml
 
+# directories
 .idea/
-
 todo/
+problems/
+!problems/2D_MBB/
+!problems/MMA/
+!problems/dens_filter/
+!problems/large_deformations/
+!problems/sens_filter/
+!problems/simple_shear_PBC_IC/
+!problems/simple_shear_PBC_IC_AMR/
+!problems/simple_shear_PBC_PDE/
+!problems/stress_cons/
+
+# Test directories/files
 **/*[Tt]est*
 **/*[Dd]bg*
