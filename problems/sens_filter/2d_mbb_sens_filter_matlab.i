@@ -8,6 +8,12 @@ Emin = 1e-9
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
+  design_density = rho
+  physical_density = rhoPhys
+  compliance_sensitivity = dc
+  volume_sensitivity = dV
+  volume_fraction = ${vol_frac}
+  radius = ${filter_radius}
 []
 
 [Mesh]
@@ -55,11 +61,20 @@ Emin = 1e-9
     order = CONSTANT
     initial_condition = ${E0}
   []
-  [Dc]
+  [dc]
     family = MONOMIAL
     order = CONSTANT
   []
-  [DV]
+  [V]
+    family = SCALAR
+    order = FIRST
+  []
+  [dV_test]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = 1
+  []
+  [dV]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = 1
@@ -80,7 +95,7 @@ Emin = 1e-9
   [copy_compliance_sens]
     type = MaterialRealAux
     property = sensitivity
-    variable = Dc
+    variable = dc
     execute_on = TIMESTEP_END
   []
 []
@@ -160,26 +175,23 @@ Emin = 1e-9
 [UserObjects]
   [update]
     type = DensityUpdateCustom
-    compliance_sensitivity = Dc
-    volume_sensitivity = DV
-    design_density = rho
-    physical_density = rhoPhys
-    volume_fraction = ${vol_frac}
+    volume_sensitivity_test = dV_test
+    mesh_generator = MeshGenerator
+    constraint_values = 'V'
   []
-  # needs MaterialRealAux to copy sensitivity (mat prop) to Dc (aux variable)
+  # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
     type = SensitivityFilterCustom
+    sensitivities = dc
     filter_type = sensitivity
-    compliance_sensitivity = Dc
-    design_density = rho
-    radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
-  #[opt_conv]
-  #  type = Terminator
-  #  expression = 'stop_vol < 1e-5 & SE_stop < 1e-5'
-  #  execute_on = TIMESTEP_END
-  #[]
+  [vol_sens]
+    type = VolumeResponse
+    limit = ${vol_frac}
+    value = V
+    sensitivity = dV
+  []
 []
 
 [Executioner]
@@ -190,46 +202,11 @@ Emin = 1e-9
   nl_abs_tol = 1e-8
   dt = 1.0
   num_steps = 94
-  #num_steps = 1
 []
 
 [Outputs]
   exodus = true
-[]
-
-[Postprocessors]
-  [total_vol]
-    type = ElementIntegralVariablePostprocessor
-    variable = rho
-    execute_on = 'INITIAL TIMESTEP_END'
-  []
-  [vol_change]
-    type = ChangeOverTimePostprocessor
-    postprocessor = total_vol
-    change_with_respect_to_initial = false
-    execute_on = 'initial timestep_end'
-  []
-  [n_el]
-    type = ConstantPostprocessor
-    value = '${fparse nx*ny}'
-  []
-  [stop_vol]
-    type = ParsedPostprocessor
-    function = 'abs(vol_change/n_el)'
-    pp_names = 'vol_change n_el'
-  []
-  [SE]
-    type = ElementIntegralMaterialProperty
-    mat_prop = strain_energy_density
-  []
-  [SE_stop]
-    type = ChangeOverTimePostprocessor
-    postprocessor = SE
-    change_with_respect_to_initial = false
-    compute_relative_change = true
-    take_absolute_value = true
-    execute_on = 'initial timestep_end'
-  []
+  csv = true
 []
 
 [Debug]

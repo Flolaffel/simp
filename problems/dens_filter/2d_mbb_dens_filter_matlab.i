@@ -8,6 +8,12 @@ Emin = 1e-9
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
+  design_density = rho
+  physical_density = rhoPhys
+  compliance_sensitivity = dc
+  volume_sensitivity = dV
+  volume_fraction = ${vol_frac}
+  radius = ${filter_radius}
 []
 
 [Mesh]
@@ -55,11 +61,19 @@ Emin = 1e-9
     order = CONSTANT
     initial_condition = ${E0}
   []
-  [Dc]
+  [dc]
     family = MONOMIAL
     order = CONSTANT
   []
-  [DV]
+  [V]
+    family = SCALAR
+    order = FIRST
+  []
+  [dV]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [dV_test]
     family = MONOMIAL
     order = CONSTANT
     initial_condition = 1
@@ -80,7 +94,7 @@ Emin = 1e-9
   [copy_compliance_sens]
     type = MaterialRealAux
     property = sensitivity
-    variable = Dc
+    variable = dc
     execute_on = TIMESTEP_END
   []
 []
@@ -90,6 +104,7 @@ Emin = 1e-9
     strain = SMALL
     add_variables = true
     incremental = false
+    generate_output = "vonmises_stress"
   []
 []
 
@@ -160,26 +175,23 @@ Emin = 1e-9
 [UserObjects]
   [update]
     type = DensityUpdateCustom
-    compliance_sensitivity = Dc
-    volume_sensitivity = DV
-    design_density = rho
-    physical_density = rhoPhys
-    volume_fraction = ${vol_frac}
-    filter_type = density
-    radius = ${filter_radius}
+    volume_sensitivity_test = dV_test
     mesh_generator = MeshGenerator
-    execute_on = TIMESTEP_END
+    constraint_values = 'V'
+    filter_type = density
   []
-  # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
+  # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
     type = SensitivityFilterCustom
-    filter_type = density
-    compliance_sensitivity = Dc
-    volume_sensitivity = DV
-    radius = ${filter_radius}
+    sensitivities = 'dc dV'
     mesh_generator = MeshGenerator
-    execute_on = TIMESTEP_END
-    force_postaux = true
+    filter_type = density
+  []
+  [vol_sens]
+    type = VolumeResponse
+    limit = ${vol_frac}
+    value = V
+    sensitivity = dV
   []
 []
 
@@ -197,7 +209,7 @@ Emin = 1e-9
   exodus = true
 []
 
-#[Debug]
-#  show_material_props = true
-#  show_execution_order = ALWAYS
-#[]
+[Debug]
+  #show_material_props = true
+  #show_execution_order = ALWAYS
+[]
