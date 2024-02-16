@@ -14,13 +14,14 @@ NormVec(std::vector<Real> vector)
 }
 
 Real
-getDeterminant(std::vector<std::vector<Real>> vec)
+getDeterminant(std::vector<std::vector<Real>> mat)
 {
-  // if (vec.size() != vec[0].size())
-  // {
-  //   throw std::runtime_error("Matrix is not quadratic");
-  // }
-  int dimension = vec.size();
+  if (mat.size() != mat[0].size())
+  {
+    mooseError("Matrix is not quadratic");
+  }
+  int dimension = mat.size();
+  // std::cout << dimension;
 
   if (dimension == 0)
   {
@@ -29,38 +30,35 @@ getDeterminant(std::vector<std::vector<Real>> vec)
 
   if (dimension == 1)
   {
-    return vec[0][0];
+    return mat[0][0];
   }
 
   // Formula for 2x2-matrix
   if (dimension == 2)
   {
-    return vec[0][0] * vec[1][1] - vec[0][1] * vec[1][0];
+    return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
   }
 
   Real result = 0;
-  int sign = 1;
-  for (int i = 0; i < dimension; i++)
+  for (int x = 0; x < dimension; x++)
   {
-
     // Submatrix
-    std::vector<std::vector<Real>> subVec(dimension - 1, std::vector<Real>(dimension - 1));
-    for (int m = 1; m < dimension; m++)
+    std::vector<std::vector<Real>> subMat(dimension - 1, std::vector<Real>(dimension - 1));
+    for (int i = 1; i < dimension; i++)
     {
       int z = 0;
-      for (int n = 0; n < dimension; n++)
+      for (int j = 0; j < dimension; j++)
       {
-        if (n != i)
+        if (j != x)
         {
-          subVec[m - 1][z] = vec[m][n];
+          subMat[i - 1][z] = mat[i][j];
           z++;
         }
       }
     }
 
     // recursive call
-    result = result + sign * vec[0][i] * getDeterminant(subVec);
-    sign = -sign;
+    result += std::pow(-1, x) * mat[0][x] * getDeterminant(subMat);
   }
 
   return result;

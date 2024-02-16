@@ -9,7 +9,7 @@ using libMesh::Real;
 Real NormVec(std::vector<Real> vector);
 
 // \returns The determinant of a matrix
-Real getDeterminant(std::vector<std::vector<Real>> vec);
+Real getDeterminant(std::vector<std::vector<Real>> mat);
 
 // 1D vector return
 
