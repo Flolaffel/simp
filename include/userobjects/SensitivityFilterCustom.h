@@ -30,30 +30,24 @@ public:
   virtual void threadJoin(const UserObject &) override{};
 
 protected:
-  /// Sensitivity with respect to density
-  MooseWritableVariable * _compliance_sensitivity;
+  /// Number of variables
+  unsigned int _n_vars;
+  /// Variable vector
+  std::vector<MooseWritableVariable *> _sensitivities;
   /// Pseudo-density variable name
   VariableName _design_density_name;
   /// The pseudo-density variable
   MooseVariable * _design_density;
-  /// Sensitivity with respect to density
-  MooseWritableVariable * _volume_sensitivity;
 
 private:
   struct ElementData
   {
-    Real compliance_sensitivity;
+    std::vector<Real> sensitivities;
     Real design_density;
-    Real volume_sensitivity;
-    Real new_compliance_sensitivity;
-    Real new_volume_sensitivity;
+    std::vector<Real> filtered_sensitivities;
     ElementData() = default;
-    ElementData(Real dc, Real dens, Real dv, Real filt_dc, Real filt_dv)
-      : compliance_sensitivity(dc),
-        design_density(dens),
-        volume_sensitivity(dv),
-        new_compliance_sensitivity(filt_dc),
-        new_volume_sensitivity(filt_dv)
+    ElementData(std::vector<Real> sens, Real dens, std::vector<Real> filt_sens)
+      : sensitivities(sens), design_density(dens), filtered_sensitivities(filt_sens)
     {
     }
   };
