@@ -15,6 +15,19 @@
 /**
  * Base class for topology optimization design responses
  */
+
+enum class Usage
+{
+  OBJECTIVE,
+  CONSTRAINT
+};
+
+enum class ConstraintType
+{
+  ABSOLUTE,
+  RELATIVE
+};
+
 class TopologyOptimizationDesignResponse : public ElementUserObject
 {
 public:
@@ -43,8 +56,14 @@ public:
   virtual void computeSensitivity() = 0;
 
 protected:
+  /// The usage
+  const Usage _usage;
+  /// Flag for objective function
+  const bool _is_objective;
+  /// Flag for constraint
+  const bool _is_constraint;
   /// Limit
-  const Real _limit;
+  Real _limit;
   /// Value
   MooseVariableScalar * _value;
   /// Sensitivity with respect to density
@@ -58,4 +77,10 @@ protected:
   /// Physical density variable
   const MooseVariable * _physical_density;
   // TODO: Already collect design density here and supply to all responses?
+
+  /**
+   * Get usage
+   * @return enum
+   */
+  static MooseEnum getUsageEnum();
 };

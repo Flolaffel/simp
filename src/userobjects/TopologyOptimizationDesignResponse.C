@@ -8,16 +8,7 @@
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
 #include "TopologyOptimizationDesignResponse.h"
-// #include "MooseError.h"
-// #include "NonlinearSystemBase.h"
-// #include "NodalBCBase.h"
-// #include "MooseVariableScalar.h"
-// #include "vector.h"
-
-// #include "libmesh/petsc_matrix.h"
-// #include "libmesh/sparse_matrix.h"
-
-// #include <algorithm>
+#include "MooseError.h"
 
 InputParameters
 TopologyOptimizationDesignResponse::validParams()
@@ -26,7 +17,9 @@ TopologyOptimizationDesignResponse::validParams()
   params.addClassDescription(
       "Base class for topology optimzation design responses that deliver absolute value for whole "
       "domain and sensitivity with respect to design variables");
-  params.addParam<Real>("limit", 1, "Limit"); /*upper limit for now*/
+  params.addRequiredParam<MooseEnum>(
+      "usage", TopologyOptimizationDesignResponse::getUsageEnum(), "The usage");
+  params.addParam<Real>("limit", "Limit"); /*upper limit for now*/
   params.addRequiredParam<AuxVariableName>("value", "Name of the value variable.");
   params.addRequiredCoupledVar("sensitivity", "Name of the sensitivity variable.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
@@ -39,7 +32,9 @@ TopologyOptimizationDesignResponse::validParams()
 TopologyOptimizationDesignResponse::TopologyOptimizationDesignResponse(
     const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _limit(getParam<Real>("limit")),
+    _usage(getParam<MooseEnum>("usage").getEnum<Usage>()),
+    _is_objective(_usage == Usage::OBJECTIVE),
+    _is_constraint(_usage == Usage::CONSTRAINT),
     _value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
     _sensitivity(&writableVariable("sensitivity")),
     _design_density_name(getParam<VariableName>("design_density")),
@@ -47,4 +42,17 @@ TopologyOptimizationDesignResponse::TopologyOptimizationDesignResponse(
     _physical_density_name(getParam<VariableName>("physical_density")),
     _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name))
 {
+  if (_is_constraint && isParamValid("limit"))
+    _limit = getParam<Real>("limit");
+  if (_is_constraint && !isParamValid("limit"))
+    mooseError("Limit needed when usage is set to constraint");
+  else if (_is_objective && isParamValid("limit"))
+    mooseError("No limit needed when usage is set to objective function");
+}
+
+MooseEnum
+TopologyOptimizationDesignResponse::getUsageEnum()
+{
+  auto usage = MooseEnum("objective constraint", "");
+  return usage;
 }
