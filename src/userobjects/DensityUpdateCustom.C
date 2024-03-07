@@ -827,6 +827,7 @@ DensityUpdateCustom::MmaSubSolve(Real m,
           rex[i] = dpsidx[i] - xsi[i] + eta[i];
         }
 
+        rez = 0;
         for (int i = 0; i < m; i++)
         {
           rey[i] = c[i] + d[i] * y[i] - mu[i] - lam[i];
