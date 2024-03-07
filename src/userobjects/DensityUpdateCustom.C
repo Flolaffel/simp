@@ -43,13 +43,8 @@ DensityUpdateCustom::validParams()
                        "iteration (provided that iter>1).");
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
   params.addParam<Real>("bisection_upper_bound", 1e9, "Upper bound for the bisection algorithm.");
-  params.addParam<int>(
-      "execution_order_group",
-      1,
-      "Execution order groups are executed in increasing order (e.g., the lowest "
-      "number is executed first). Note that negative group numbers may be used to execute groups "
-      "before the default (0) group. Please refer to the user object documentation "
-      "for ordering of user object execution within a group.");
+  params.addParam<Real>("move_limit", 0.5, "Move limit.");
+  params.set<int>("execution_order_group") = 2;
   return params;
 }
 
@@ -334,7 +329,7 @@ DensityUpdateCustom::performMmaLoop()
   // die hier spaeter als Parameter übergeben
   Real epsimin = 0.0000001;
   Real raa0 = 0.00001;
-  Real move = 0.5;
+  Real move = _move_limit;
   Real albefa = 0.1;
   Real asyinit = 0.5;
   Real asyincr = 1.2;

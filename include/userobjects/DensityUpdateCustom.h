@@ -151,6 +151,8 @@ private:
   Real _lower_bound;
   /// Upper bound for bisection algorithm
   Real _upper_bound;
+  /// Move limit
+  Real _move_limit;
 
   /**
    * Performs the MMA setup
