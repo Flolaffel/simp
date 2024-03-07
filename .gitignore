@@ -327,7 +327,7 @@ share/
 # directories
 .idea/
 todo/
-problems/
+problems/*
 !problems/2D_MBB/
 !problems/MMA/
 !problems/dens_filter/
