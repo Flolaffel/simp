@@ -33,7 +33,6 @@ void
 VolumeResponse::initialize()
 {
   gatherElementData();
-  _n_el = _elem_data_map.size();
   computeValue();
   computeSensitivity();
 }
@@ -72,19 +71,28 @@ VolumeResponse::gatherElementData()
           0);
       _elem_data_map[elem_id] = data;
     }
+
+  _n_el = _elem_data_map.size();
 }
 
 void
 VolumeResponse::computeValue()
 {
-  Real constraint_value = 0;
+  Real value = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    constraint_value += elem_data.physical_density;
+    value += elem_data.physical_density;
   }
-  constraint_value /= _limit * _n_el;
-  constraint_value -= 1;
-  _value->setValues(constraint_value);
+
+  if (_is_objective)
+    value /= _n_el;
+  else if (_is_constraint)
+  {
+    value /= _limit * _n_el;
+    value -= 1;
+  }
+
+  _value->setValues(value);
   _value->insert(_value->sys().solution());
   _value->sys().solution().close();
 }
@@ -94,6 +102,9 @@ VolumeResponse::computeSensitivity()
 {
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    elem_data.new_volume_sensitivity = 1 / (_limit * _n_el);
+    if (_is_constraint)
+      elem_data.new_volume_sensitivity = 1.0 / (_limit * _n_el);
+    else if (_is_objective)
+      elem_data.new_volume_sensitivity = 1.0 / _n_el;
   }
 }
