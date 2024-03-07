@@ -73,11 +73,6 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
   []
-  [dV_test]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = 1
-  []
   [rho]
     family = MONOMIAL
     order = CONSTANT
@@ -175,9 +170,9 @@ Emin = 1e-9
 [UserObjects]
   [update]
     type = DensityUpdateCustom
-    volume_sensitivity_test = dV_test
     mesh_generator = MeshGenerator
     constraint_values = 'V'
+    constraint_sensitivities = dV
     filter_type = density
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
