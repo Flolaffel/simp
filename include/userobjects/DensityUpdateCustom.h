@@ -52,16 +52,22 @@ protected:
   MooseWritableVariable * _old_design_density2;
   /// The pseudo-density variable
   MooseWritableVariable * _physical_density;
-  /// The compliance sensitivity name
-  const VariableName _compliance_sensitivity_name;
-  /// The filtered compliance sensitivity variable
-  const MooseVariable * _compliance_sensitivity;
-  /// The volume sensitivity name
-  const VariableName _volume_sensitivity_name;
-  /// The filtered volume sensitivity variable
-  const MooseVariable * _volume_sensitivity;
+  /// The objective function sensitivity name
+  const VariableName _objective_sensitivity_name;
+  /// The objective function sensitivity variable
+  const MooseVariable * _objective_sensitivity;
+  /// Number of constraints
+  unsigned int _n_cons;
+  /// The constraint value variable names
+  const std::vector<VariableName> _constraint_value_names;
+  /// The constraint values
+  std::vector<MooseVariableScalar *> _constraint_values;
+  /// The constraint sensitivity variable names
+  const std::vector<VariableName> _constraint_sensitivity_names;
+  /// The constraint sensitivities
+  std::vector<MooseVariable *> _constraint_sensitivities;
   /// The volume fraction to be enforced
-  const Real _volume_fraction;
+  Real _volume_fraction;
   /// Column vector with the lower asymptotes from the previous iteration (provided that iter>1)
   MooseWritableVariable * _lower_asymptotes;
   /// Column vector with the upper asymptotes from the previous iteration (provided that iter>1)
@@ -80,8 +86,8 @@ private:
     Real current_physical_density;
     Real old_design_density1;
     Real old_design_density2;
-    Real compliance_sensitivity;
-    Real volume_sensitivity;
+    Real objective_sensitivity;
+    std::vector<Real> constraint_sensitivities;
     Real lower;
     Real upper;
     Real volume;
@@ -94,8 +100,8 @@ private:
                 Real curr_p_dens,
                 Real old_dens1,
                 Real old_dens2,
-                Real dc,
-                Real dv,
+                Real oc,
+                std::vector<Real> dgs,
                 Real low,
                 Real upp,
                 Real vol,
@@ -107,8 +113,8 @@ private:
         current_physical_density(curr_p_dens),
         old_design_density1(old_dens1),
         old_design_density2(old_dens2),
-        compliance_sensitivity(dc),
-        volume_sensitivity(dv),
+        objective_sensitivity(oc),
+        constraint_sensitivities(dgs),
         lower(low),
         upper(upp),
         volume(vol),
@@ -130,6 +136,9 @@ private:
 
   /// Data structure to hold old density, sensitivity, volume, current density.
   std::map<dof_id_type, ElementData> _elem_data_map;
+
+  /// Number of elements
+  unsigned int _n_el;
 
   /**
    * Performs the optimality criterion loop (bisection)

@@ -10,6 +10,7 @@
 #include "DensityUpdateCustom.h"
 #include "vector.h"
 #include <algorithm>
+#include "MooseVariableScalar.h"
 
 registerMooseObject("OptimizationApp", DensityUpdateCustom);
 
@@ -27,11 +28,13 @@ DensityUpdateCustom::validParams()
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
-  params.addRequiredParam<VariableName>("compliance_sensitivity",
-                                        "Name of the compliance sensitivity variable.");
-  params.addRequiredParam<VariableName>("volume_sensitivity",
-                                        "Name of the volume sensitivity variable.");
-  params.addRequiredParam<Real>("volume_fraction", "Volume Fraction");
+  params.addRequiredParam<VariableName>("objective_function_sensitivity",
+                                        "Name of the objective function sensitivity variable.");
+  params.addParam<Real>("volume_fraction", "Volume Fraction");
+  params.addParam<std::vector<VariableName>>("constraint_values",
+                                             "Constraint value variable names");
+  params.addParam<std::vector<VariableName>>("constraint_sensitivities",
+                                             "Constraint sensitivity variable names.");
   params.addCoupledVar("mma_lower_asymptotes",
                        "Column vector with the lower asymptotes from the previous "
                        "iteration (provided that iter>1).");
@@ -57,11 +60,10 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
     _use_mma(_update_scheme == UpdateScheme::MMA),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density")),
-    _compliance_sensitivity_name(getParam<VariableName>("compliance_sensitivity")),
-    _compliance_sensitivity(&_subproblem.getStandardVariable(_tid, _compliance_sensitivity_name)),
-    _volume_sensitivity_name(getParam<VariableName>("volume_sensitivity")),
-    _volume_sensitivity(&_subproblem.getStandardVariable(_tid, _volume_sensitivity_name)),
-    _volume_fraction(getParam<Real>("volume_fraction"))
+    _objective_sensitivity_name(getParam<VariableName>("objective_function_sensitivity")),
+    _objective_sensitivity(&_subproblem.getStandardVariable(_tid, _objective_sensitivity_name)),
+    _constraint_value_names(getParam<std::vector<VariableName>>("constraint_values")),
+    _constraint_sensitivity_names(getParam<std::vector<VariableName>>("constraint_sensitivities"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
@@ -72,6 +74,7 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
 
   if (_use_oc)
   {
+    _volume_fraction = getParam<Real>("volume_fraction");
     _lower_bound = getParam<Real>("bisection_lower_bound");
     _upper_bound = getParam<Real>("bisection_upper_bound");
   }
@@ -81,6 +84,23 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
     _old_design_density2 = &writableVariable("old_design_density2");
     _lower_asymptotes = &writableVariable("mma_lower_asymptotes");
     _upper_asymptotes = &writableVariable("mma_upper_asymptotes");
+    _move_limit = getParam<Real>("move_limit");
+  }
+
+  if (isParamValid("constraint_values") && isParamValid("constraint_sensitivities"))
+  {
+    if (_constraint_value_names.size() != _constraint_sensitivity_names.size())
+      mooseError("Please supply a value and a sensitivity for every constraint");
+    _n_cons = _constraint_value_names.size();
+    if (_use_oc && _n_cons > 1)
+      mooseError("OC solver only supports one constraint");
+    for (unsigned int i = 0; i < _n_cons; i++)
+    {
+      _constraint_values.push_back(
+          &_subproblem.getScalarVariable(_tid, _constraint_value_names[i]));
+      _constraint_sensitivities.push_back(
+          &_subproblem.getStandardVariable(_tid, _constraint_sensitivity_names[i]));
+    }
   }
 }
 
@@ -88,6 +108,7 @@ void
 DensityUpdateCustom::initialize()
 {
   gatherElementData();
+  _n_el = _elem_data_map.size();
   if (_filter_type == FilterType::DENSITY)
     Filter::prepareFilter();
   if (_use_oc)
@@ -136,6 +157,15 @@ DensityUpdateCustom::gatherElementData()
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
     {
       dof_id_type elem_id = elem->id();
+
+      std::vector<Real> con_sens(_n_cons);
+      int i = 0;
+      for (auto & sensitivity : _constraint_sensitivities)
+      {
+        con_sens[i] = dynamic_cast<MooseVariableFE<Real> *>(sensitivity)->getElementalValue(elem);
+        i++;
+      }
+
       ElementData data;
       if (_use_oc)
       {
@@ -144,10 +174,9 @@ DensityUpdateCustom::gatherElementData()
             0,
             0,
             0,
-            dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
+            dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
                 ->getElementalValue(elem),
-            dynamic_cast<const MooseVariableFE<Real> *>(_volume_sensitivity)
-                ->getElementalValue(elem),
+            con_sens,
             0,
             0,
             elem->volume(),
@@ -163,10 +192,9 @@ DensityUpdateCustom::gatherElementData()
             dynamic_cast<MooseVariableFE<Real> *>(_physical_density)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
-            dynamic_cast<const MooseVariableFE<Real> *>(_compliance_sensitivity)
+            dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
                 ->getElementalValue(elem),
-            dynamic_cast<const MooseVariableFE<Real> *>(_volume_sensitivity)
-                ->getElementalValue(elem),
+            con_sens,
             dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
             elem->volume(),
@@ -204,8 +232,8 @@ DensityUpdateCustom::performOcLoop()
     {
       // Compute the updated density for the current element
       new_density[id] = computeUpdatedDensity(elem_data.current_design_density,
-                                              elem_data.compliance_sensitivity,
-                                              elem_data.volume_sensitivity,
+                                              elem_data.objective_sensitivity,
+                                              elem_data.constraint_sensitivities[0],
                                               lmid);
     }
     std::vector<Real> filt_density = new_density;
@@ -245,6 +273,10 @@ DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real d
 {
   // Define the maximum allowable change in density
   Real move = 0.2;
+  // Volume sensitivity from VolumeResponse is calculated for constraint of for
+  // g = sum(x)/V_lim - 1 < 0 with derivative dg/dx = 1/V_lim
+  // We need derivative dg/dx = 1 here
+  dv *= _volume_fraction * _n_el;
   // Compute the updated density based on the current density, the sensitivity, and the midpoint
   // value
   Real updated_density =
@@ -282,14 +314,20 @@ DensityUpdateCustom::performMmaLoop()
     xval[id] = elem_data.current_design_density;
     xold1[id] = elem_data.old_design_density1;
     xold2[id] = elem_data.old_design_density2;
-    df0dx[id] = elem_data.compliance_sensitivity;
-    dfdx[0][id] = elem_data.volume_sensitivity / (_volume_fraction * n);
+    /*f0val not needed*/
+    df0dx[id] = elem_data.objective_sensitivity;
+    for (unsigned int i = 0; i < m; i++)
+    {
+      dfdx[i][id] = elem_data.constraint_sensitivities[i];
+    }
     low[id] = elem_data.lower;
     upp[id] = elem_data.upper;
-    fval[0] += elem_data.current_physical_density;
   }
-  fval[0] /= _volume_fraction * n;
-  fval[0] -= 1;
+
+  for (unsigned int i = 0; i < m; i++)
+  {
+    fval[i] = *(_constraint_values[0]->sln().data());
+  }
 
   /// MMA
 
