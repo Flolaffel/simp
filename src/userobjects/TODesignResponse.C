@@ -7,18 +7,17 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "TopologyOptimizationDesignResponse.h"
+#include "TODesignResponse.h"
 #include "MooseError.h"
 
 InputParameters
-TopologyOptimizationDesignResponse::validParams()
+TODesignResponse::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
   params.addClassDescription(
       "Base class for topology optimzation design responses that deliver absolute value for whole "
       "domain and sensitivity with respect to design variables");
-  params.addRequiredParam<MooseEnum>(
-      "usage", TopologyOptimizationDesignResponse::getUsageEnum(), "The usage");
+  params.addRequiredParam<MooseEnum>("usage", TODesignResponse::getUsageEnum(), "The usage");
   params.addParam<Real>("limit", "Limit"); /*upper limit for now*/
   params.addRequiredParam<AuxVariableName>("value", "Name of the value variable.");
   params.addRequiredCoupledVar("sensitivity", "Name of the sensitivity variable.");
@@ -29,8 +28,7 @@ TopologyOptimizationDesignResponse::validParams()
   return params;
 }
 
-TopologyOptimizationDesignResponse::TopologyOptimizationDesignResponse(
-    const InputParameters & parameters)
+TODesignResponse::TODesignResponse(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _usage(getParam<MooseEnum>("usage").getEnum<Usage>()),
     _is_objective(_usage == Usage::OBJECTIVE),
@@ -51,7 +49,7 @@ TopologyOptimizationDesignResponse::TopologyOptimizationDesignResponse(
 }
 
 MooseEnum
-TopologyOptimizationDesignResponse::getUsageEnum()
+TODesignResponse::getUsageEnum()
 {
   auto usage = MooseEnum("objective constraint", "");
   return usage;

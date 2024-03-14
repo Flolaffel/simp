@@ -28,12 +28,12 @@ enum class ConstraintType
   RELATIVE
 };
 
-class TopologyOptimizationDesignResponse : public ElementUserObject
+class TODesignResponse : public ElementUserObject
 {
 public:
   static InputParameters validParams();
 
-  TopologyOptimizationDesignResponse(const InputParameters & parameters);
+  TODesignResponse(const InputParameters & parameters);
 
   virtual void initialize() override{};
   virtual void execute() override{};
