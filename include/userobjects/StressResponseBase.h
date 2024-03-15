@@ -16,12 +16,12 @@
  * Element user object that copmutes the sensitivity need for a stress constrained Solid Isotropic
  * Material Penalization (SIMP) optimization.
  */
-class StressResponse : public TODesignResponse
+class StressResponseBase : public TODesignResponse
 {
 public:
   static InputParameters validParams();
 
-  StressResponse(const InputParameters & parameters);
+  StressResponseBase(const InputParameters & parameters);
 
   virtual void initialize() override;
   virtual void execute() override;
