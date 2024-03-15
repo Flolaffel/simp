@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include "TopologyOptimizationDesignResponse.h"
+#include "TODesignResponse.h"
 #include "MooseTypes.h"
 
 /**
  * Element user object that copmutes the sensitivity need for a stress constrained Solid Isotropic
  * Material Penalization (SIMP) optimization.
  */
-class StressResponse : public TopologyOptimizationDesignResponse
+class StressResponse : public TODesignResponse
 {
 public:
   static InputParameters validParams();

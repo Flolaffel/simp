@@ -7,7 +7,7 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "StressResponse.h"
+#include "StressResponseBase.h"
 #include "MooseError.h"
 #include "NonlinearSystemBase.h"
 #include "NodalBCBase.h"
@@ -23,12 +23,12 @@
 
 #include <algorithm>
 
-registerMooseObject("OptimizationApp", StressResponse);
+registerMooseObject("OptimizationApp", StressResponseBase);
 
 InputParameters
-StressResponse::validParams()
+StressResponseBase::validParams()
 {
-  InputParameters params = TopologyOptimizationDesignResponse::validParams();
+  InputParameters params = TODesignResponse::validParams();
   params.addClassDescription(
       "Computes the stress sensitivities for stress constrained topology optimization (2D ONLY).");
   params.addParam<std::vector<VariableName>>("stresses", "Stress names (VM, xx, yy, xy).");
@@ -45,8 +45,8 @@ StressResponse::validParams()
   return params;
 }
 
-StressResponse::StressResponse(const InputParameters & parameters)
-  : TopologyOptimizationDesignResponse(parameters),
+StressResponseBase::StressResponseBase(const InputParameters & parameters)
+  : TODesignResponse(parameters),
     _dof_map(_sys.dofMap()),
     _stress_names(getParam<std::vector<VariableName>>("stresses")),
     _displacement_names(getParam<std::vector<VariableName>>("displacements")),
@@ -84,17 +84,18 @@ StressResponse::StressResponse(const InputParameters & parameters)
 }
 
 void
-StressResponse::initialize()
+StressResponseBase::initialize()
 {
   gatherNodalData();
   gatherElementData();
+  initializeEMat();
   computeStress();
   computeValue();
   computeSensitivity();
 }
 
 void
-StressResponse::execute()
+StressResponseBase::execute()
 {
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
@@ -113,7 +114,7 @@ StressResponse::execute()
 }
 
 void
-StressResponse::gatherNodalData()
+StressResponseBase::gatherNodalData()
 {
   _nodal_data_map.clear();
 
@@ -131,7 +132,7 @@ StressResponse::gatherNodalData()
 }
 
 void
-StressResponse::gatherElementData()
+StressResponseBase::gatherElementData()
 {
   _elem_data_map.clear();
 
@@ -173,11 +174,10 @@ StressResponse::gatherElementData()
 }
 
 void
-StressResponse::computeStress()
+StressResponseBase::computeStress()
 {
   _stress.resize(_n_el, 3);
   _vonmises.resize(_n_el);
-  initializeEMat();
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector vector =
@@ -189,7 +189,7 @@ StressResponse::computeStress()
 }
 
 void
-StressResponse::computeValue()
+StressResponseBase::computeValue()
 {
   Real PM = 0;
   for (auto && [id, elem_data] : _elem_data_map)
@@ -207,7 +207,7 @@ StressResponse::computeValue()
 }
 
 void
-StressResponse::computeSensitivity()
+StressResponseBase::computeSensitivity()
 {
   // all DOFs
   dof_id_type n_dofs = _sys.system().n_dofs();
@@ -374,7 +374,7 @@ StressResponse::computeSensitivity()
 }
 
 void
-StressResponse::initializeEMat()
+StressResponseBase::initializeEMat()
 {
   // Elasticity tensor E
   Real E_prefactor = _E0 / (1 - std::pow(_nu, 2));
@@ -383,7 +383,7 @@ StressResponse::initializeEMat()
 }
 
 RealEigenMatrix
-StressResponse::getBMat(Real xi, Real eta)
+StressResponseBase::getBMat(Real xi, Real eta)
 {
   // only true for unit element size
   int l = 1;
