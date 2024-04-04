@@ -287,20 +287,20 @@ DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real d
 void
 DensityUpdateCustom::performMmaLoop()
 {
-  int m = 1;
-  int n = _elem_data_map.size();
+  int m = _n_cons;
+  int n = _n_el;
 
   // Vector variables of size n
-  std::vector<Real> xmin(n, 0), xmax(n, 1), xold1(n, 0), xold2(n, 0), low(n, 0), upp(n, 0),
-      xval(n, 0), df0dx(n, 0);
+  std::vector<Real> xmin(n), xmax(n, 1), xold1(n), xold2(n), low(n), upp(n), xval(n),
+      df0dx(n);
 
   // Vector variables of size m
-  std::vector<Real> fval(m), a(m, 0), c_MMA(m, 10000), d(m, 0);
+  std::vector<Real> fval(m), a(m), c_MMA(m, 10000), d(m, 1);
 
   // Matrix variable of size m x n
   std::vector<std::vector<Real>> dfdx(m, std::vector<Real>(n));
 
-  // Scalar constant
+  // Scalar constants
   Real a0 = 1;
 
   // Loop over all elements to populate the vectors
