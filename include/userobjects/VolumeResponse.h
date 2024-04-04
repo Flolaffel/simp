@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include "TopologyOptimizationDesignResponse.h"
+#include "TODesignResponse.h"
 
 /**
  * Element user object that copmutes the absolute value and sensitivity for a volume response in
  * Solid Isotropic Material Penalization (SIMP) optimization.
  */
-class VolumeResponse : public TopologyOptimizationDesignResponse
+class VolumeResponse : public TODesignResponse
 {
 public:
   static InputParameters validParams();

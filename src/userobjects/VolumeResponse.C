@@ -18,16 +18,13 @@ registerMooseObject("OptimizationApp", VolumeResponse);
 InputParameters
 VolumeResponse::validParams()
 {
-  InputParameters params = TopologyOptimizationDesignResponse::validParams();
+  InputParameters params = TODesignResponse::validParams();
   params.addClassDescription("Computes the volume sensitivities for volume constrained topology "
                              "optimization (2D ONLY). RELATIVE LIMIT");
   return params;
 }
 
-VolumeResponse::VolumeResponse(const InputParameters & parameters)
-  : TopologyOptimizationDesignResponse(parameters)
-{
-}
+VolumeResponse::VolumeResponse(const InputParameters & parameters) : TODesignResponse(parameters) {}
 
 void
 VolumeResponse::initialize()
