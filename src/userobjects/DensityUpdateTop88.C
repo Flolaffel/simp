@@ -99,6 +99,13 @@ DensityUpdateTop88::gatherElementData()
 }
 
 void
+DensityUpdateTop88::threadJoin(const UserObject & y)
+{
+  const DensityUpdateTop88 & uo = static_cast<const DensityUpdateTop88 &>(y);
+  _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
+}
+
+void
 DensityUpdateTop88::performOptimCritLoop()
 {
   // Initialize the lower and upper bounds for the bisection method
