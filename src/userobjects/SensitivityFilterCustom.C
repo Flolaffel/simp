@@ -85,6 +85,13 @@ SensitivityFilterCustom::execute()
 }
 
 void
+SensitivityFilterCustom::threadJoin(const UserObject & y)
+{
+  const SensitivityFilterCustom & uo = static_cast<const SensitivityFilterCustom &>(y);
+  _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
+}
+
+void
 SensitivityFilterCustom::gatherElementData()
 {
   _elem_data_map.clear();
@@ -167,3 +174,4 @@ SensitivityFilterCustom::updateSensitivitiesDensityFilter()
     elem_data.filtered_sensitivities = filt_sens;
   }
 }
+

@@ -27,7 +27,7 @@ public:
   virtual void initialize() override;
   virtual void execute() override;
   virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void threadJoin(const UserObject & y) override;
 
 protected:
   /// Number of variables
