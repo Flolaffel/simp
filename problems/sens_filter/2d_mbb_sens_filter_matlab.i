@@ -10,8 +10,6 @@ Emin = 1e-9
   displacements = 'disp_x disp_y'
   design_density = rho
   physical_density = rhoPhys
-  compliance_sensitivity = dc
-  volume_sensitivity = dV
   volume_fraction = ${vol_frac}
   radius = ${filter_radius}
 []
@@ -170,6 +168,7 @@ Emin = 1e-9
   [update]
     type = DensityUpdateCustom
     mesh_generator = MeshGenerator
+    objective_function_sensitivity = dc
     constraint_values = 'V'
     constraint_sensitivities = dV
   []
@@ -182,6 +181,7 @@ Emin = 1e-9
   []
   [vol_sens]
     type = VolumeResponse
+    usage = constraint
     limit = ${vol_frac}
     value = V
     sensitivity = dV

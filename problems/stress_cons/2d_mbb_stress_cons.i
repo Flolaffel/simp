@@ -5,9 +5,17 @@ vol_frac = 0.5
 filter_radius = 1.5
 E0 = 1
 Emin = 1e-9
+nu = 0.3
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
+  design_density = rho
+  physical_density = rhoPhys
+  volume_fraction = ${vol_frac}
+  radius = ${filter_radius}
+  E0 = ${E0}
+  Emin = ${Emin}
+  p = ${p}
 []
 
 [Mesh]
@@ -55,14 +63,25 @@ Emin = 1e-9
     order = CONSTANT
     initial_condition = ${E0}
   []
-  [Dc]
+  [dc]
     family = MONOMIAL
     order = CONSTANT
   []
-  [DV]
+  [V]
+    family = SCALAR
+    order = FIRST
+  []
+  [dV]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = 1
+  []
+  [KS]
+    family = SCALAR
+    order = FIRST
+  []
+  [dKS]
+    family = MONOMIAL
+    order = CONSTANT
   []
   [rho]
     family = MONOMIAL
@@ -100,7 +119,7 @@ Emin = 1e-9
   [copy_compliance_sens]
     type = MaterialRealAux
     property = sensitivity
-    variable = Dc
+    variable = dc
     execute_on = TIMESTEP_END
   []
 []
@@ -110,6 +129,7 @@ Emin = 1e-9
     strain = SMALL
     add_variables = true
     incremental = false
+    generate_output = "stress_xx stress_yy stress_xy vonmises_stress"
   []
 []
 
@@ -119,12 +139,14 @@ Emin = 1e-9
     variable = disp_y
     boundary = pull
     value = 0.0
+    matrix_tags = system
   []
   [no_y]
     type = DirichletBC
     variable = disp_x
     boundary = left
     value = 0.0
+    matrix_tags = system
   []
 []
 
@@ -134,6 +156,7 @@ Emin = 1e-9
     variable = disp_y
     boundary = push
     rate = -1
+    matrix_tags = system
   []
 []
 
@@ -154,7 +177,7 @@ Emin = 1e-9
   [poissons_ratio]
     type = GenericConstantMaterial
     prop_names = poissons_ratio
-    prop_values = 0.3
+    prop_values = ${nu}
   []
   [stress]
     type = ComputeLinearElasticStress
@@ -164,9 +187,6 @@ Emin = 1e-9
     design_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
-    E0 = ${E0}
-    Emin = ${Emin}
-    p = ${p}
   []
 []
 
@@ -179,30 +199,40 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustomTest
+    type = DensityUpdateCustom
     update_scheme = MMA
-    compliance_sensitivity = Dc
-    volume_sensitivity = DV
-    design_density = rho
-    physical_density = rhoPhys
-    volume_fraction = ${vol_frac}
+    objective_function_sensitivity = dc
+    constraint_values = 'V KS'
+    constraint_sensitivities = 'dV dKS'
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    execute_on = TIMESTEP_END
+    filter_type = density
+    mesh_generator = MeshGenerator
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
-  [calc_sense]
+  [filt_sens]
     type = SensitivityFilterCustom
-    filter_type = sensitivity
-    compliance_sensitivity = Dc
-    volume_sensitivity = DV
-    design_density = rho
-    radius = ${filter_radius}
+    filter_type = density
+    sensitivities = 'dc dV dKS'
     mesh_generator = MeshGenerator
-    execute_on = TIMESTEP_END
-    force_postaux = true
+  []
+  [stress_sens]
+    type = StressResponse
+    usage = constraint
+    limit = 1
+    value = KS
+    sensitivity = dKS
+    stresses = 'vonmises_stress stress_xx stress_xy stress_yy'
+    poissons_ratio = ${nu}
+  []
+  [vol_sens]
+    type = VolumeResponse
+    usage = constraint
+    limit = ${vol_frac}
+    value = V
+    sensitivity = dV
   []
 []
 
@@ -213,14 +243,14 @@ Emin = 1e-9
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1.0
-  num_steps = 81
+  num_steps = 100
 []
 
 [Outputs]
   exodus = true
 []
 
-#[Debug]
-#  show_material_props = true
-#  show_execution_order = ALWAYS
-#[]
+[Debug]
+  # show_material_props = true
+  # show_execution_order = ALWAYS
+[]
