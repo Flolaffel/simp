@@ -23,14 +23,16 @@ public:
 
   StressResponseBase(const InputParameters & parameters);
 
+  virtual void initialSetup() override;
   virtual void initialize() override;
   virtual void execute() override;
   virtual void finalize() override{};
   virtual void threadJoin(const UserObject &) override{};
 
   virtual void gatherElementData() override;
-  virtual void computeValue() override;
-  virtual void computeSensitivity() override;
+  virtual void computeStress() = 0;
+  virtual void computeValue() override{};
+  virtual void computeSensitivity() override{};
 
 protected:
   /// DOF map
@@ -60,26 +62,27 @@ protected:
   const Real _nu;
   /// Penalty value
   const Real _p;
-  /// KS function Parameter
+  /// Aggregation parameter
   const Real _P;
-  /// Stress penalization Parameter
-  const Real _q;
-
-  TagID _system_matrix_tag_id;
-
-  RealEigenMatrix _stress;
-  RealEigenVector _vonmises;
+  /// Elasticity matrix
   RealEigenMatrix _E;
+  /// Element number
+  unsigned int _n_el;
+  /// Number of DOFs
+  dof_id_type _n_dofs;
+  /// Vector of all DOFs
+  std::vector<dof_id_type> _all_dofs;
+  /// Vector of fixed DOFs
+  std::vector<dof_id_type> _fixed_dofs;
+  /// Vector of free DOFs
+  std::vector<dof_id_type> _free_dofs;
+  /// Map of DOFs per elements
+  std::vector<std::vector<dof_id_type>> _elem_to_dof_map;
+  /// Element stiffness matrix
+  RealEigenMatrix _KE;
+  /// Global displacement vector
+  RealEigenVector _U;
 
-  // /// The number of the nonlinear system representing the adjoint model
-  // const unsigned int _nl_sys_num;
-  // /// The nonlinear system representing the forward model
-  // NonlinearSystemBase & _nl_sys;
-  // const TagName & _system_matrix;
-
-  // const MaterialProperty<RankFourTensor> & _Jacobian_mult;
-
-private:
   struct ElementData
   {
     Real vonmises_stress;
@@ -128,17 +131,43 @@ private:
   /// Data structure to hold nodal values
   std::map<dof_id_type, NodalData> _nodal_data_map;
 
-  /// Element number
-  unsigned int _n_el;
-
   /**
    * Gathers nodal data necessary to calculate stress sensitivity
    */
   void gatherNodalData();
 
-  void computeStress();
+  /**
+   * Initializes _n_dofs, _all_dofs, _fixed_dofs, _free_dofs and _elem_to_dof_map
+   */
+  void initializeDofVariables();
 
+  /**
+   * Initializes _E
+   */
   void initializeEMat();
 
+  /**
+   * Returns B-matrix at coordinates xi,eta for regular element
+   */
   RealEigenMatrix getBMat(Real xi, Real eta);
+
+  /**
+   * Initializes _KE
+   */
+  void initializeKeMat();
+
+  /**
+   * Initializes _U
+   */
+  void initializeUVec();
+
+  /**
+   * Copmutes lambda from system matrix and gamma_red
+   */
+  RealEigenVector getLambda(std::vector<Real> gamma_red);
+
+  /**
+   * Copmutes T2 from lambda
+   */
+  RealEigenVector getT2(RealEigenVector lambda);
 };
