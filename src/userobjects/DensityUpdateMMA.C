@@ -17,7 +17,7 @@ registerMooseObject("OptimizationApp", DensityUpdateCustom);
 InputParameters
 DensityUpdateCustom::validParams()
 {
-  InputParameters params = Filter::validParams();
+  InputParameters params = ElementUserObject::validParams();
   params.addClassDescription("Compute updated densities based on sensitivities using OC "
                              "or MMA (inputs: x_old1/2, low, upp) to "
                              "keep the volume constraint satisified. Offers density filtering "
@@ -25,7 +25,6 @@ DensityUpdateCustom::validParams()
   params.addParam<MooseEnum>(
       "update_scheme", DensityUpdateCustom::getUpdateSchemeEnum(), "The update scheme");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
-  params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
   params.addRequiredParam<VariableName>("objective_function_sensitivity",
@@ -49,12 +48,11 @@ DensityUpdateCustom::validParams()
 }
 
 DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
-  : Filter(parameters),
+  : ElementUserObject(parameters),
     _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateScheme>()),
     _use_oc(_update_scheme == UpdateScheme::OC),
     _use_mma(_update_scheme == UpdateScheme::MMA),
     _design_density(&writableVariable("design_density")),
-    _physical_density(&writableVariable("physical_density")),
     _objective_sensitivity_name(getParam<VariableName>("objective_function_sensitivity")),
     _objective_sensitivity(&_subproblem.getStandardVariable(_tid, _objective_sensitivity_name)),
     _constraint_value_names(getParam<std::vector<VariableName>>("constraint_values")),
@@ -62,10 +60,6 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
-  if (!dynamic_cast<MooseVariableFE<Real> *>(_physical_density))
-    paramError("physical_density", "Physical density must be a finite element variable");
-  if (_filter_type == FilterType::SENSITIVITY)
-    paramError("filter_type", "Sensitivity filtering is not a viable option for density update");
 
   if (_use_oc)
   {
@@ -104,8 +98,6 @@ DensityUpdateCustom::initialize()
 {
   gatherElementData();
   _n_el = _elem_data_map.size();
-  if (_filter_type == FilterType::DENSITY)
-    Filter::prepareFilter();
   if (_use_oc)
     performOcLoop();
   else if (_use_mma)
@@ -124,8 +116,6 @@ DensityUpdateCustom::execute()
     ElementData & elem_data = elem_data_iter->second;
     dynamic_cast<MooseVariableFE<Real> *>(_design_density)
         ->setNodalValue(elem_data.new_design_density);
-    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-        ->setNodalValue(elem_data.new_phys_density);
     if (_use_mma)
     {
       dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
@@ -168,14 +158,12 @@ DensityUpdateCustom::gatherElementData()
             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
             0,
             0,
-            0,
             dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
                 ->getElementalValue(elem),
             con_sens,
             0,
             0,
             elem->volume(),
-            0,
             0,
             0,
             0);
@@ -184,7 +172,6 @@ DensityUpdateCustom::gatherElementData()
       {
         data = ElementData(
             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-            dynamic_cast<MooseVariableFE<Real> *>(_physical_density)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
             dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
@@ -193,7 +180,6 @@ DensityUpdateCustom::gatherElementData()
             dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
             dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
             elem->volume(),
-            0,
             0,
             0,
             0);
@@ -209,57 +195,57 @@ DensityUpdateCustom::gatherElementData()
 void
 DensityUpdateCustom::performOcLoop()
 {
-  // Initialize the lower and upper bounds for the bisection method
-  Real l1 = _lower_bound;
-  Real l2 = _upper_bound;
-  bool perform_loop = true;
-  // Loop until the relative difference between l1 and l2 is less than a small tolerance
-  while (perform_loop)
-  {
-    // Compute the midpoint between l1 and l2
-    Real lmid = 0.5 * (l2 + l1);
+  // // Initialize the lower and upper bounds for the bisection method
+  // Real l1 = _lower_bound;
+  // Real l2 = _upper_bound;
+  // bool perform_loop = true;
+  // // Loop until the relative difference between l1 and l2 is less than a small tolerance
+  // while (perform_loop)
+  // {
+  //   // Compute the midpoint between l1 and l2
+  //   Real lmid = 0.5 * (l2 + l1);
 
-    // Initialize a vector holding the new densities
-    unsigned int n_el = _elem_data_map.size();
-    std::vector<Real> new_density(n_el);
-    // Loop over all elements
-    for (auto && [id, elem_data] : _elem_data_map)
-    {
-      // Compute the updated density for the current element
-      new_density[id] = computeUpdatedDensity(elem_data.current_design_density,
-                                              elem_data.objective_sensitivity,
-                                              elem_data.constraint_sensitivities[0],
-                                              lmid);
-    }
-    std::vector<Real> filt_density = new_density;
+  //   // Initialize a vector holding the new densities
+  //   unsigned int n_el = _elem_data_map.size();
+  //   std::vector<Real> new_density(n_el);
+  //   // Loop over all elements
+  //   for (auto && [id, elem_data] : _elem_data_map)
+  //   {
+  //     // Compute the updated density for the current element
+  //     new_density[id] = computeUpdatedDensity(elem_data.current_design_density,
+  //                                             elem_data.objective_sensitivity,
+  //                                             elem_data.constraint_sensitivities[0],
+  //                                             lmid);
+  //   }
+  //   std::vector<Real> filt_density = new_density;
 
-    if (_filter_type == FilterType::DENSITY)
-      filt_density = DensityFilter(new_density);
+  //   if (_filter_type == FilterType::DENSITY)
+  //     filt_density = DensityFilter(new_density);
 
-    // Initialize the current total volume
-    Real curr_total_volume = 0;
-    // Assign new values
-    for (auto && [id, elem_data] : _elem_data_map)
-    {
-      // Update the current filtered density for the current element
-      elem_data.new_design_density = new_density[id];
-      elem_data.new_phys_density = filt_density[id];
-      curr_total_volume += filt_density[id] * elem_data.volume;
-    }
+  //   // Initialize the current total volume
+  //   Real curr_total_volume = 0;
+  //   // Assign new values
+  //   for (auto && [id, elem_data] : _elem_data_map)
+  //   {
+  //     // Update the current filtered density for the current element
+  //     elem_data.new_design_density = new_density[id];
+  //     elem_data.new_phys_density = filt_density[id];
+  //     curr_total_volume += filt_density[id] * elem_data.volume;
+  //   }
 
-    // Sum the current total volume across all processors
-    _communicator.sum(curr_total_volume);
+  //   // Sum the current total volume across all processors
+  //   _communicator.sum(curr_total_volume);
 
-    // Update l1 or l2 based on whether the current total volume is greater than the total
-    // allowable volume
-    if (curr_total_volume > _total_allowable_volume)
-      l1 = lmid;
-    else
-      l2 = lmid;
+  //   // Update l1 or l2 based on whether the current total volume is greater than the total
+  //   // allowable volume
+  //   if (curr_total_volume > _total_allowable_volume)
+  //     l1 = lmid;
+  //   else
+  //     l2 = lmid;
 
-    // Determine whether to continue the loop based on the relative difference between l1 and l2
-    perform_loop = (l2 - l1) / (l1 + l2) > 1e-3;
-  }
+  //   // Determine whether to continue the loop based on the relative difference between l1 and l2
+  //   perform_loop = (l2 - l1) / (l1 + l2) > 1e-3;
+  // }
 }
 
 // Method to compute the updated density for an element
@@ -291,8 +277,7 @@ DensityUpdateCustom::performMmaLoop()
   int n = _n_el;
 
   // Vector variables of size n
-  std::vector<Real> xmin(n), xmax(n, 1), xold1(n), xold2(n), low(n), upp(n), xval(n),
-      df0dx(n);
+  std::vector<Real> xmin(n), xmax(n, 1), xold1(n), xold2(n), low(n), upp(n), xval(n), df0dx(n);
 
   // Vector variables of size m
   std::vector<Real> fval(m), a(m), c_MMA(m, 10000), d(m, 1);
@@ -434,16 +419,10 @@ DensityUpdateCustom::performMmaLoop()
   std::vector<Real> new_density =
       MmaSubSolve(m, n, epsimin, low, upp, alpha, beta, p0, q0, P, Q, a0, a, b, c_MMA, d);
 
-  std::vector<Real> filt_density = new_density;
-
-  if (_filter_type == FilterType::DENSITY)
-    filt_density = DensityFilter(new_density);
-
   for (auto && [id, elem_data] : _elem_data_map)
   {
     // Update the current filtered density for the current element
     elem_data.new_design_density = new_density[id];
-    elem_data.new_phys_density = filt_density[id];
     elem_data.new_lower = low[id];
     elem_data.new_upper = upp[id];
   }
@@ -863,22 +842,6 @@ DensityUpdateCustom::MmaSubSolve(Real m,
     epsi *= 0.1;
   }
   return x;
-}
-
-std::vector<Real>
-DensityUpdateCustom::DensityFilter(std::vector<Real> density)
-{
-  unsigned int n_el = density.size();
-  std::vector<Real> filt_density(n_el, 0);
-  for (unsigned int i = 0; i < n_el; i++)
-  {
-    for (unsigned int j = 0; j < n_el; j++)
-    {
-      filt_density[i] += _H[i][j] * density[j];
-    }
-    filt_density[i] /= _Hs[i];
-  }
-  return filt_density;
 }
 
 MooseEnum

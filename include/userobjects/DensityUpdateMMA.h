@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Filter.h"
+#include "ElementUserObject.h"
 #include "MooseTypes.h"
 
 /**
@@ -24,7 +24,7 @@ enum class UpdateScheme
   MMA
 };
 
-class DensityUpdateCustom : public Filter
+class DensityUpdateCustom : public ElementUserObject
 {
 public:
   static InputParameters validParams();
@@ -50,8 +50,6 @@ protected:
   MooseWritableVariable * _old_design_density1;
   /// The older pseudo-density variable
   MooseWritableVariable * _old_design_density2;
-  /// The pseudo-density variable
-  MooseWritableVariable * _physical_density;
   /// The objective function sensitivity name
   const VariableName _objective_sensitivity_name;
   /// The objective function sensitivity variable
@@ -83,7 +81,6 @@ private:
   struct ElementData
   {
     Real current_design_density;
-    Real current_physical_density;
     Real old_design_density1;
     Real old_design_density2;
     Real objective_sensitivity;
@@ -92,12 +89,10 @@ private:
     Real upper;
     Real volume;
     Real new_design_density;
-    Real new_phys_density;
     Real new_lower;
     Real new_upper;
     ElementData() = default;
     ElementData(Real curr_d_dens,
-                Real curr_p_dens,
                 Real old_dens1,
                 Real old_dens2,
                 Real oc,
@@ -106,11 +101,9 @@ private:
                 Real upp,
                 Real vol,
                 Real new_dens,
-                Real filt_dens,
                 Real new_low,
                 Real new_upp)
       : current_design_density(curr_d_dens),
-        current_physical_density(curr_p_dens),
         old_design_density1(old_dens1),
         old_design_density2(old_dens2),
         objective_sensitivity(oc),
@@ -119,7 +112,6 @@ private:
         upper(upp),
         volume(vol),
         new_design_density(new_dens),
-        new_phys_density(filt_dens),
         new_lower(new_low),
         new_upper(new_upp)
     {
@@ -175,6 +167,4 @@ private:
                                 std::vector<Real> b,
                                 std::vector<Real> c,
                                 std::vector<Real> d);
-
-  std::vector<Real> DensityFilter(std::vector<Real> density);
 };
