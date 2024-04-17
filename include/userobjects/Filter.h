@@ -24,7 +24,8 @@ enum class FilterType
 {
   NONE,
   SENSITIVITY,
-  DENSITY
+  DENSITY,
+  HEAVISIDE
 };
 
 class Filter : public ElementUserObject
@@ -36,7 +37,7 @@ public:
 
   virtual void initialize() override{};
   virtual void execute() override{};
-  virtual void finalize() override{};
+  virtual void finalize() override;
   virtual void threadJoin(const UserObject &) override{};
 
   /**
@@ -81,6 +82,13 @@ protected:
    * Prepares data needed for filtering of new densitys
    */
   void prepareFilter();
+
+  /// Heaviside parameters
+  Real _beta_0;
+  Real _beta_max;
+  Real _beta;
+  Real _eta;
+
 
 private:
 };

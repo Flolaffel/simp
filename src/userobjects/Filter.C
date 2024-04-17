@@ -23,6 +23,9 @@ Filter::validParams()
   params.addParam<MeshGeneratorName>(
       "mesh_generator",
       "Name of the mesh generator to be used to retrieve control drums information.");
+  params.addParam<Real>("beta_0", "Start value for beta continuation scheme.");
+  params.addParam<Real>("beta_max", 16, "Maximum value for beta continuation scheme.");
+  params.addParam<Real>("eta", 0.5, "Value for eta.");
   return params;
 }
 
@@ -37,10 +40,38 @@ Filter::Filter(const InputParameters & parameters)
     _radius = getParam<Real>("radius");
     _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
     _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
+    _n_el = _nx * _ny;
     _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
     _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
     _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
     _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+  }
+
+  if (_filter_type == FilterType::HEAVISIDE)
+  {
+    _eta = getParam<Real>("eta");
+    _beta_max = getParam<Real>("beta_max");
+    if (isParamValid("beta_0"))
+    {
+      _beta_0 = getParam<Real>("beta_0");
+    }
+    else
+    {
+      // NOTE: only for unit element size
+      Real l_e = 1;
+      _beta_0 = _radius / l_e;
+    }
+    _beta = _beta_0;
+  }
+}
+
+void
+Filter::finalize()
+{
+  if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
+  {
+    _beta = std::min(1.25 * _beta, _beta_max);
+    _console << "Beta increased to " << _beta << "\n" << std::flush;
   }
 }
 
@@ -98,11 +129,12 @@ Filter::prepareFilter()
 MooseEnum
 Filter::getFilterEnum()
 {
-  auto filter = MooseEnum("none sensitivity density", "none");
+  auto filter = MooseEnum("none sensitivity density heaviside", "none");
 
   filter.addDocumentation("none", "No filter.");
   filter.addDocumentation("sensitivity", "Sensitivity filter.");
   filter.addDocumentation("density", "Density filter.");
+  filter.addDocumentation("heaviside", "Heaviside projection.");
   return filter;
 }
 
