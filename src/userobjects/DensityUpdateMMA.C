@@ -7,23 +7,21 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "DensityUpdateCustom.h"
+#include "DensityUpdateMMA.h"
 #include "vector.h"
 #include <algorithm>
 #include "MooseVariableScalar.h"
 
-registerMooseObject("OptimizationApp", DensityUpdateCustom);
+registerMooseObject("OptimizationApp", DensityUpdateMMA);
 
 InputParameters
-DensityUpdateCustom::validParams()
+DensityUpdateMMA::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
   params.addClassDescription("Compute updated densities based on sensitivities using OC "
                              "or MMA (inputs: x_old1/2, low, upp) to "
                              "keep the volume constraint satisified. Offers density filtering "
                              "(inputs: r, mesh). ReqInputs: x, x_phys, dc, dv, vol_frac");
-  params.addParam<MooseEnum>(
-      "update_scheme", DensityUpdateCustom::getUpdateSchemeEnum(), "The update scheme");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
@@ -40,49 +38,32 @@ DensityUpdateCustom::validParams()
   params.addCoupledVar("mma_upper_asymptotes",
                        "Column vector with the upper asymptotes from the previous "
                        "iteration (provided that iter>1).");
-  params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
-  params.addParam<Real>("bisection_upper_bound", 1e9, "Upper bound for the bisection algorithm.");
   params.addParam<Real>("move_limit", 0.5, "Move limit.");
   params.set<int>("execution_order_group") = 2;
   return params;
 }
 
-DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
+DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _update_scheme(getParam<MooseEnum>("update_scheme").getEnum<UpdateScheme>()),
-    _use_oc(_update_scheme == UpdateScheme::OC),
-    _use_mma(_update_scheme == UpdateScheme::MMA),
     _design_density(&writableVariable("design_density")),
     _objective_sensitivity_name(getParam<VariableName>("objective_function_sensitivity")),
     _objective_sensitivity(&_subproblem.getStandardVariable(_tid, _objective_sensitivity_name)),
     _constraint_value_names(getParam<std::vector<VariableName>>("constraint_values")),
-    _constraint_sensitivity_names(getParam<std::vector<VariableName>>("constraint_sensitivities"))
+    _constraint_sensitivity_names(getParam<std::vector<VariableName>>("constraint_sensitivities")),
+    _old_design_density1(&writableVariable("old_design_density1")),
+    _old_design_density2(&writableVariable("old_design_density2")),
+    _lower_asymptotes(&writableVariable("mma_lower_asymptotes")),
+    _upper_asymptotes(&writableVariable("mma_upper_asymptotes")),
+    _move_limit(getParam<Real>("move_limit"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
-
-  if (_use_oc)
-  {
-    _volume_fraction = getParam<Real>("volume_fraction");
-    _lower_bound = getParam<Real>("bisection_lower_bound");
-    _upper_bound = getParam<Real>("bisection_upper_bound");
-  }
-  else if (_use_mma)
-  {
-    _old_design_density1 = &writableVariable("old_design_density1");
-    _old_design_density2 = &writableVariable("old_design_density2");
-    _lower_asymptotes = &writableVariable("mma_lower_asymptotes");
-    _upper_asymptotes = &writableVariable("mma_upper_asymptotes");
-    _move_limit = getParam<Real>("move_limit");
-  }
 
   if (isParamValid("constraint_values") && isParamValid("constraint_sensitivities"))
   {
     if (_constraint_value_names.size() != _constraint_sensitivity_names.size())
       mooseError("Please supply a value and a sensitivity for every constraint");
     _n_cons = _constraint_value_names.size();
-    if (_use_oc && _n_cons > 1)
-      mooseError("OC solver only supports one constraint");
     for (unsigned int i = 0; i < _n_cons; i++)
     {
       _constraint_values.push_back(
@@ -94,18 +75,14 @@ DensityUpdateCustom::DensityUpdateCustom(const InputParameters & parameters)
 }
 
 void
-DensityUpdateCustom::initialize()
+DensityUpdateMMA::initialize()
 {
   gatherElementData();
-  _n_el = _elem_data_map.size();
-  if (_use_oc)
-    performOcLoop();
-  else if (_use_mma)
-    performMmaLoop();
+  performMmaLoop();
 }
 
 void
-DensityUpdateCustom::execute()
+DensityUpdateMMA::execute()
 {
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
@@ -116,15 +93,12 @@ DensityUpdateCustom::execute()
     ElementData & elem_data = elem_data_iter->second;
     dynamic_cast<MooseVariableFE<Real> *>(_design_density)
         ->setNodalValue(elem_data.new_design_density);
-    if (_use_mma)
-    {
-      dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
-          ->setNodalValue(elem_data.current_design_density);
-      dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)
-          ->setNodalValue(elem_data.old_design_density1);
-      dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->setNodalValue(elem_data.new_lower);
-      dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->setNodalValue(elem_data.new_upper);
-    }
+    dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
+        ->setNodalValue(elem_data.current_design_density);
+    dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)
+        ->setNodalValue(elem_data.old_design_density1);
+    dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->setNodalValue(elem_data.new_lower);
+    dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->setNodalValue(elem_data.new_upper);
   }
   else
   {
@@ -133,7 +107,7 @@ DensityUpdateCustom::execute()
 }
 
 void
-DensityUpdateCustom::gatherElementData()
+DensityUpdateMMA::gatherElementData()
 {
   _elem_data_map.clear();
   _total_allowable_volume = 0;
@@ -152,126 +126,29 @@ DensityUpdateCustom::gatherElementData()
       }
 
       ElementData data;
-      if (_use_oc)
-      {
-        data = ElementData(
-            dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-            0,
-            0,
-            dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
-                ->getElementalValue(elem),
-            con_sens,
-            0,
-            0,
-            elem->volume(),
-            0,
-            0,
-            0);
-      }
-      else if (_use_mma)
-      {
-        data = ElementData(
-            dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-            dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
-            dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
-            dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
-                ->getElementalValue(elem),
-            con_sens,
-            dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
-            dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
-            elem->volume(),
-            0,
-            0,
-            0);
-      }
+      data = ElementData(
+          dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
+          dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
+          dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
+          dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
+              ->getElementalValue(elem),
+          con_sens,
+          dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
+          dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
+          elem->volume(),
+          0,
+          0,
+          0);
       _elem_data_map[elem_id] = data;
       _total_allowable_volume += elem->volume();
     }
-
+  _n_el = _elem_data_map.size();
   _communicator.sum(_total_allowable_volume);
   _total_allowable_volume *= _volume_fraction;
 }
 
 void
-DensityUpdateCustom::performOcLoop()
-{
-  // // Initialize the lower and upper bounds for the bisection method
-  // Real l1 = _lower_bound;
-  // Real l2 = _upper_bound;
-  // bool perform_loop = true;
-  // // Loop until the relative difference between l1 and l2 is less than a small tolerance
-  // while (perform_loop)
-  // {
-  //   // Compute the midpoint between l1 and l2
-  //   Real lmid = 0.5 * (l2 + l1);
-
-  //   // Initialize a vector holding the new densities
-  //   unsigned int n_el = _elem_data_map.size();
-  //   std::vector<Real> new_density(n_el);
-  //   // Loop over all elements
-  //   for (auto && [id, elem_data] : _elem_data_map)
-  //   {
-  //     // Compute the updated density for the current element
-  //     new_density[id] = computeUpdatedDensity(elem_data.current_design_density,
-  //                                             elem_data.objective_sensitivity,
-  //                                             elem_data.constraint_sensitivities[0],
-  //                                             lmid);
-  //   }
-  //   std::vector<Real> filt_density = new_density;
-
-  //   if (_filter_type == FilterType::DENSITY)
-  //     filt_density = DensityFilter(new_density);
-
-  //   // Initialize the current total volume
-  //   Real curr_total_volume = 0;
-  //   // Assign new values
-  //   for (auto && [id, elem_data] : _elem_data_map)
-  //   {
-  //     // Update the current filtered density for the current element
-  //     elem_data.new_design_density = new_density[id];
-  //     elem_data.new_phys_density = filt_density[id];
-  //     curr_total_volume += filt_density[id] * elem_data.volume;
-  //   }
-
-  //   // Sum the current total volume across all processors
-  //   _communicator.sum(curr_total_volume);
-
-  //   // Update l1 or l2 based on whether the current total volume is greater than the total
-  //   // allowable volume
-  //   if (curr_total_volume > _total_allowable_volume)
-  //     l1 = lmid;
-  //   else
-  //     l2 = lmid;
-
-  //   // Determine whether to continue the loop based on the relative difference between l1 and l2
-  //   perform_loop = (l2 - l1) / (l1 + l2) > 1e-3;
-  // }
-}
-
-// Method to compute the updated density for an element
-Real
-DensityUpdateCustom::computeUpdatedDensity(Real current_density, Real dc, Real dv, Real lmid)
-{
-  // Define the maximum allowable change in density
-  Real move = 0.2;
-  // Volume sensitivity from VolumeResponse is calculated for constraint of for
-  // g = sum(x)/V_lim - 1 < 0 with derivative dg/dx = 1/V_lim
-  // We need derivative dg/dx = 1 here
-  dv *= _volume_fraction * _n_el;
-  // Compute the updated density based on the current density, the sensitivity, and the midpoint
-  // value
-  Real updated_density =
-      std::max(0.0,
-               std::max(current_density - move,
-                        std::min(1.0,
-                                 std::min(current_density + move,
-                                          current_density * std::sqrt(-dc / dv / lmid)))));
-  // Return the updated density
-  return updated_density;
-}
-
-void
-DensityUpdateCustom::performMmaLoop()
+DensityUpdateMMA::performMmaLoop()
 {
   int m = _n_cons;
   int n = _n_el;
@@ -430,22 +307,22 @@ DensityUpdateCustom::performMmaLoop()
 
 // Method to solve the MMA subproblem by a primal-dual Newton method
 std::vector<Real>
-DensityUpdateCustom::MmaSubSolve(Real m,
-                                 Real n,
-                                 Real epsimin,
-                                 std::vector<Real> low,
-                                 std::vector<Real> upp,
-                                 std::vector<Real> alpha,
-                                 std::vector<Real> beta,
-                                 std::vector<Real> p0,
-                                 std::vector<Real> q0,
-                                 std::vector<std::vector<Real>> P,
-                                 std::vector<std::vector<Real>> Q,
-                                 Real a0,
-                                 std::vector<Real> a,
-                                 std::vector<Real> b,
-                                 std::vector<Real> c,
-                                 std::vector<Real> d)
+DensityUpdateMMA::MmaSubSolve(Real m,
+                              Real n,
+                              Real epsimin,
+                              std::vector<Real> low,
+                              std::vector<Real> upp,
+                              std::vector<Real> alpha,
+                              std::vector<Real> beta,
+                              std::vector<Real> p0,
+                              std::vector<Real> q0,
+                              std::vector<std::vector<Real>> P,
+                              std::vector<std::vector<Real>> Q,
+                              Real a0,
+                              std::vector<Real> a,
+                              std::vector<Real> b,
+                              std::vector<Real> c,
+                              std::vector<Real> d)
 {
   std::vector<Real> een(n, 1);
   std::vector<Real> eem(m, 1);
@@ -842,11 +719,4 @@ DensityUpdateCustom::MmaSubSolve(Real m,
     epsi *= 0.1;
   }
   return x;
-}
-
-MooseEnum
-DensityUpdateCustom::getUpdateSchemeEnum()
-{
-  auto filter = MooseEnum("OC MMA", "OC");
-  return filter;
 }

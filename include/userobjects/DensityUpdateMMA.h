@@ -18,18 +18,12 @@
  * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
  */
 
-enum class UpdateScheme
-{
-  OC,
-  MMA
-};
-
-class DensityUpdateCustom : public ElementUserObject
+class DensityUpdateMMA : public ElementUserObject
 {
 public:
   static InputParameters validParams();
 
-  DensityUpdateCustom(const InputParameters & parameters);
+  DensityUpdateMMA(const InputParameters & parameters);
 
   virtual void initialize() override;
   virtual void timestepSetup() override{};
@@ -38,12 +32,6 @@ public:
   virtual void threadJoin(const UserObject &) override{};
 
 protected:
-  /// The update scheme
-  const UpdateScheme _update_scheme;
-  /// Flag for OC
-  const bool _use_oc;
-  /// Flag for MMA
-  const bool _use_mma;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The old pseudo-density variable
@@ -70,12 +58,6 @@ protected:
   MooseWritableVariable * _lower_asymptotes;
   /// Column vector with the upper asymptotes from the previous iteration (provided that iter>1)
   MooseWritableVariable * _upper_asymptotes;
-
-  /**
-   * Get update scheme
-   * @return enum
-   */
-  static MooseEnum getUpdateSchemeEnum();
 
 private:
   struct ElementData
@@ -132,17 +114,6 @@ private:
   /// Number of elements
   unsigned int _n_el;
 
-  /**
-   * Performs the optimality criterion loop (bisection)
-   */
-  void performOcLoop();
-
-  Real computeUpdatedDensity(Real current_density, Real dc, Real dv, Real lmid);
-
-  /// Lower bound for bisection algorithm
-  Real _lower_bound;
-  /// Upper bound for bisection algorithm
-  Real _upper_bound;
   /// Move limit
   Real _move_limit;
 
