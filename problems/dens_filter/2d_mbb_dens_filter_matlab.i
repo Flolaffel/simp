@@ -10,8 +10,6 @@ Emin = 1e-9
   displacements = 'disp_x disp_y'
   design_density = rho
   physical_density = rhoPhys
-  compliance_sensitivity = dc
-  volume_sensitivity = dV
   volume_fraction = ${vol_frac}
   radius = ${filter_radius}
 []
@@ -65,10 +63,6 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
   []
-  [V]
-    family = SCALAR
-    order = FIRST
-  []
   [dV]
     family = MONOMIAL
     order = CONSTANT
@@ -90,6 +84,12 @@ Emin = 1e-9
     type = MaterialRealAux
     property = sensitivity
     variable = dc
+    execute_on = TIMESTEP_END
+  []
+  [volume_sens]
+    type = ConstantAux
+    variable = dV
+    value = 1
     execute_on = TIMESTEP_END
   []
 []
@@ -151,7 +151,7 @@ Emin = 1e-9
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
     E0 = ${E0}
@@ -169,11 +169,11 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    mesh_generator = MeshGenerator
-    constraint_values = 'V'
-    constraint_sensitivities = dV
+    type = DensityUpdateOC
+    objective_function_sensitivity = dc
+    volume_sensitivity = dV
     filter_type = density
+    mesh_generator = MeshGenerator
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
@@ -181,12 +181,6 @@ Emin = 1e-9
     sensitivities = 'dc dV'
     mesh_generator = MeshGenerator
     filter_type = density
-  []
-  [vol_sens]
-    type = VolumeResponse
-    limit = ${vol_frac}
-    value = V
-    sensitivity = dV
   []
 []
 

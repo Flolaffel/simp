@@ -63,10 +63,6 @@ Emin = 1e-9
     family = MONOMIAL
     order = CONSTANT
   []
-  [V]
-    family = SCALAR
-    order = FIRST
-  []
   [dV]
     family = MONOMIAL
     order = CONSTANT
@@ -90,6 +86,12 @@ Emin = 1e-9
     variable = dc
     execute_on = TIMESTEP_END
   []
+  [volume_sens]
+    type = ConstantAux
+    variable = dV
+    value = 1
+    execute_on = TIMESTEP_END
+  []
 []
 
 [Modules/TensorMechanics/Master]
@@ -97,6 +99,7 @@ Emin = 1e-9
     strain = SMALL
     add_variables = true
     incremental = false
+    generate_output = "vonmises_stress"
   []
 []
 
@@ -148,7 +151,7 @@ Emin = 1e-9
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
     E0 = ${E0}
@@ -166,25 +169,17 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    mesh_generator = MeshGenerator
+    type = DensityUpdateOC
     objective_function_sensitivity = dc
-    constraint_values = 'V'
-    constraint_sensitivities = dV
+    volume_sensitivity = dV
+    mesh_generator = MeshGenerator
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
     type = SensitivityFilterCustom
     sensitivities = dc
-    filter_type = sensitivity
     mesh_generator = MeshGenerator
-  []
-  [vol_sens]
-    type = VolumeResponse
-    usage = constraint
-    limit = ${vol_frac}
-    value = V
-    sensitivity = dV
+    filter_type = sensitivity
   []
 []
 
@@ -200,7 +195,6 @@ Emin = 1e-9
 
 [Outputs]
   exodus = true
-  csv = true
 []
 
 [Debug]

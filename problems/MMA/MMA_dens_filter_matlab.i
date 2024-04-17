@@ -168,7 +168,7 @@ Emin = 1e-9
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
     E0 = ${E0}
@@ -186,14 +186,11 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    update_scheme = MMA
+    type = DensityUpdateMMA
     objective_function_sensitivity = dc
     constraint_values = 'V'
     constraint_sensitivities = dV
     volume_fraction = ${vol_frac}
-    filter_type = density
-    mesh_generator = MeshGenerator
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
@@ -205,6 +202,13 @@ Emin = 1e-9
     sensitivities = 'dc dV'
     mesh_generator = MeshGenerator
     filter_type = density
+  []
+  [filter]
+    type = DensityFilter
+    design_density = rho
+    physical_density = rhoPhys
+    radius = ${filter_radius}
+    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
