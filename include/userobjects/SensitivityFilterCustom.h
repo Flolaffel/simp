@@ -17,6 +17,7 @@
  * objects. This object can be used to apply a Solid Isotropic Material Penalization (SIMP) to
  * optimization.
  */
+
 class SensitivityFilterCustom : public Filter
 {
 public:
@@ -24,9 +25,9 @@ public:
 
   SensitivityFilterCustom(const InputParameters & parameters);
 
+  virtual void initialSetup() override;
   virtual void initialize() override;
   virtual void execute() override;
-  virtual void finalize() override{};
   virtual void threadJoin(const UserObject & y) override;
 
 protected:
@@ -38,16 +39,24 @@ protected:
   VariableName _design_density_name;
   /// The pseudo-density variable
   MooseVariable * _design_density;
+  /// Filtered density variable name
+  VariableName _filtered_density_name;
+  /// Filtered density variable
+  MooseVariable * _filtered_density;
 
 private:
   struct ElementData
   {
     std::vector<Real> sensitivities;
     Real design_density;
+    Real filtered_density;
     std::vector<Real> filtered_sensitivities;
     ElementData() = default;
-    ElementData(std::vector<Real> sens, Real dens, std::vector<Real> filt_sens)
-      : sensitivities(sens), design_density(dens), filtered_sensitivities(filt_sens)
+    ElementData(std::vector<Real> sens, Real dens, Real filt_dens, std::vector<Real> filt_sens)
+      : sensitivities(sens),
+        design_density(dens),
+        filtered_density(filt_dens),
+        filtered_sensitivities(filt_sens)
     {
     }
   };
@@ -61,12 +70,17 @@ private:
   void gatherElementData();
 
   /**
-   * Filters the compliance sensitivity in respect to the density
+   * Filters the objective function sensitivity
    */
   void updateSensitivitiesSensitivityFilter();
 
   /**
-   * Filters the compliance and volume sensitivities in respect to the density
+   * Updates the sensitivities for density filter usage
    */
   void updateSensitivitiesDensityFilter();
+
+  /**
+   * Updates the sensitivities for heaviside projection usage
+   */
+  void updateSensitivitiesHeaviside();
 };
