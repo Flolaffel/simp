@@ -65,6 +65,8 @@ protected:
   unsigned int _nx;
   /// Number of elements in Y direction
   unsigned int _ny;
+  /// Number of elements
+  unsigned int _n_el;
   /// Lower X Coordinate of the generated mesh
   Real _xmin;
   /// Upper X Coordinate of the generated mesh
