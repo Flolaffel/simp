@@ -19,7 +19,7 @@ ComputeVariableIsotropicElasticityTensorPlaneStress::validParams()
   InputParameters params = ComputeElasticityTensorBase::validParams();
   params.addClassDescription(
       "Compute an isotropic plane stress elasticity tensor for elastic constants that "
-                             "change as a function of material properties");
+      "change as a function of material properties");
   params.addRequiredParam<MaterialPropertyName>(
       "youngs_modulus", "Name of material property defining the Young's Modulus");
   params.addRequiredParam<MaterialPropertyName>(
@@ -44,7 +44,7 @@ ComputeVariableIsotropicElasticityTensorPlaneStress::
     _isotropic_elastic_constants(2)
 {
   // all tensors created by this class are always isotropic
-  // issueGuarantee(_elasticity_tensor_name, Guarantee::ISOTROPIC);
+  issueGuarantee(_elasticity_tensor_name, Guarantee::ISOTROPIC);
 
   // fetch prerequisite derivatives and build elasticity tensor derivatives and cross-derivatives
   for (unsigned int i = 0; i < _num_args; ++i)
