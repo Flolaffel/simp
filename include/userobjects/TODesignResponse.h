@@ -68,10 +68,6 @@ protected:
   MooseVariableScalar * _value;
   /// Sensitivity with respect to density
   MooseWritableVariable * _sensitivity;
-  /// Design density variable name
-  const VariableName _design_density_name;
-  /// Design density variable
-  const MooseVariable * _design_density;
   /// Physical density variable name
   const VariableName _physical_density_name;
   /// Physical density variable

@@ -21,7 +21,6 @@ TODesignResponse::validParams()
   params.addParam<Real>("limit", "Limit"); /*upper limit for now*/
   params.addRequiredParam<AuxVariableName>("value", "Name of the value variable.");
   params.addRequiredCoupledVar("sensitivity", "Name of the sensitivity variable.");
-  params.addParam<VariableName>("design_density", "Design density variable name.");
   params.addParam<VariableName>("physical_density", "Physical density variable name.");
   params.set<bool>("force_postaux") = true;
   params.set<int>("execution_order_group") = 0;
@@ -35,8 +34,6 @@ TODesignResponse::TODesignResponse(const InputParameters & parameters)
     _is_constraint(_usage == Usage::CONSTRAINT),
     _value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
     _sensitivity(&writableVariable("sensitivity")),
-    _design_density_name(getParam<VariableName>("design_density")),
-    _design_density(&_subproblem.getStandardVariable(_tid, _design_density_name)),
     _physical_density_name(getParam<VariableName>("physical_density")),
     _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name))
 {
