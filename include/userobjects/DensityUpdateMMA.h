@@ -118,8 +118,8 @@ private:
   /**
    * Solves MMA subproblem with primal-dual Newton method
    */
-  std::vector<Real> MmaSubSolve(Real m,
-                                Real n,
+  std::vector<Real> MmaSubSolve(unsigned int m,
+                                unsigned int n,
                                 Real epsimin,
                                 std::vector<Real> low,
                                 std::vector<Real> upp,

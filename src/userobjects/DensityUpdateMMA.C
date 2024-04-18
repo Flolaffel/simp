@@ -143,8 +143,8 @@ DensityUpdateMMA::gatherElementData()
 void
 DensityUpdateMMA::performMmaLoop()
 {
-  int m = _n_cons;
-  int n = _n_el;
+  unsigned int m = _n_cons;
+  unsigned int n = _n_el;
 
   // Vector variables of size n
   std::vector<Real> xmin(n), xmax(n, 1), xold1(n), xold2(n), low(n), upp(n), xval(n), df0dx(n);
@@ -196,7 +196,7 @@ DensityUpdateMMA::performMmaLoop()
   std::vector<Real> zzz(n, 0);
   if (_t_step <= 2)
   {
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++)
     {
       low[i] = xval[i] - asyinit * (xmax[i] - xmin[i]);
       upp[i] = xval[i] + asyinit * (xmax[i] - xmin[i]);
@@ -204,7 +204,7 @@ DensityUpdateMMA::performMmaLoop()
   }
   else
   {
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++)
     {
       zzz[i] = (xval[i] - xold1[i]) * (xold1[i] - xold2[i]);
       Real factor;
@@ -228,7 +228,7 @@ DensityUpdateMMA::performMmaLoop()
 
   // Calculation of the bounds alpha and beta
   std::vector<Real> alpha(n, 0), beta(n, 0);
-  for (int i = 0; i < n; i++)
+  for (unsigned int i = 0; i < n; i++)
   {
     Real zzz1, zzz2;
     zzz1 = low[i] + albefa * (xval[i] - low[i]);
@@ -244,7 +244,7 @@ DensityUpdateMMA::performMmaLoop()
   // Calculations of p0, q0, P, Q and b
   std::vector<Real> xmami(n), xmamieps(n), xmamiinv(n), ux1(n), ux2(n), xl1(n), xl2(n), uxinv(n),
       xlinv(n), p0(n), q0(n), pq0(n);
-  for (int i = 0; i < n; i++)
+  for (unsigned int i = 0; i < n; i++)
   {
     xmami[i] = xmax[i] - xmin[i];
     xmamieps[i] = 0.00001 * eeen[i];
@@ -269,9 +269,9 @@ DensityUpdateMMA::performMmaLoop()
   std::vector<std::vector<Real>> P(m, std::vector<Real>(n)), Q(m, std::vector<Real>(n));
   std::vector<Real> b(m, 0);
   Real PQ;
-  for (int i = 0; i < m; i++)
+  for (unsigned int i = 0; i < m; i++)
   {
-    for (int j = 0; j < n; j++)
+    for (unsigned int j = 0; j < n; j++)
     {
       P[i][j] = std::max(dfdx[i][j], 0.0);
       Q[i][j] = std::max(-dfdx[i][j], 0.0);
@@ -300,8 +300,8 @@ DensityUpdateMMA::performMmaLoop()
 
 // Method to solve the MMA subproblem by a primal-dual Newton method
 std::vector<Real>
-DensityUpdateMMA::MmaSubSolve(Real m,
-                              Real n,
+DensityUpdateMMA::MmaSubSolve(unsigned int m,
+                              unsigned int n,
                               Real epsimin,
                               std::vector<Real> low,
                               std::vector<Real> upp,
@@ -329,7 +329,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
   std::vector<Real> s(m, 1);
 
   std::vector<Real> x(n, 0), xsi(n, 0), eta(n, 0);
-  for (int i = 0; i < n; i++)
+  for (unsigned int i = 0; i < n; i++)
   {
     epsvecn[i] = epsi * een[i];
     x[i] = 0.5 * (alpha[i] + beta[i]);
@@ -340,14 +340,14 @@ DensityUpdateMMA::MmaSubSolve(Real m,
   }
 
   std::vector<Real> mu(m);
-  for (int i = 0; i < m; i++)
+  for (unsigned int i = 0; i < m; i++)
     mu[i] = std::max(eem[i], 0.5 * c[i]);
 
   while (epsi > epsimin)
   {
     std::vector<Real> ux1(n, 0), xl1(n, 0), ux2(n, 0), xl2(n, 0), uxinv1(n, 0), xlinv1(n, 0),
         rexsi(n, 0), reeta(n, 0);
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++)
     {
       epsvecn[i] = epsi * een[i];
       ux1[i] = upp[i] - x[i];
@@ -362,10 +362,10 @@ DensityUpdateMMA::MmaSubSolve(Real m,
 
     std::vector<Real> plam(n), qlam(n);
     std::vector<Real> gvec(m, 0);
-    for (int i = 0; i < m; i++)
+    for (unsigned int i = 0; i < m; i++)
     {
       epsvecm[i] = epsi * eem[i];
-      for (int j = 0; j < n; j++)
+      for (unsigned int j = 0; j < n; j++)
       {
         if (i == 0)
         {
@@ -379,7 +379,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
     }
 
     std::vector<Real> dpsidx(n, 0), rex(n, 0);
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++)
     {
       dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
       rex[i] = dpsidx[i] - xsi[i] + eta[i];
@@ -387,7 +387,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
 
     std::vector<Real> rey(m), relam(m), remu(m), res(m);
     Real rez = 0;
-    for (int i = 0; i < m; i++)
+    for (unsigned int i = 0; i < m; i++)
     {
       rey[i] = c[i] + d[i] * y[i] - mu[i] - lam[i];
       relam[i] = gvec[i] - a[i] * z - y[i] + s[i] - b[i];
@@ -428,7 +428,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
       std::vector<std::vector<Real>> GG(m, std::vector<Real>(n));
       std::vector<Real> ux3(n, 0), xl3(n, 0), uxinv2(n, 0), xlinv2(n, 0), delx(n, 0), diagx(n, 0),
           diagxinv(n, 0);
-      for (int i = 0; i < n; i++)
+      for (unsigned int i = 0; i < n; i++)
       {
         ux1[i] = upp[i] - x[i];
         xl1[i] = x[i] - low[i];
@@ -445,9 +445,9 @@ DensityUpdateMMA::MmaSubSolve(Real m,
       std::fill(std::begin(plam), std::end(plam), 0);
       std::fill(std::begin(qlam), std::end(qlam), 0);
       std::fill(std::begin(gvec), std::end(gvec), 0);
-      for (int i = 0; i < m; i++)
+      for (unsigned int i = 0; i < m; i++)
       {
-        for (int j = 0; j < n; j++)
+        for (unsigned int j = 0; j < n; j++)
         {
           if (i == 0)
           {
@@ -461,7 +461,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
         }
       }
 
-      for (int i = 0; i < n; i++)
+      for (unsigned int i = 0; i < n; i++)
       {
         dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
         delx[i] = dpsidx[i] - epsvecn[i] / (x[i] - alpha[i]) + epsvecn[i] / (beta[i] - x[i]);
@@ -472,7 +472,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
 
       std::vector<Real> dely(m), dellam(m), diagy(m), diagyinv(m), diaglam(m), diaglamyi(m);
       Real delz = 0;
-      for (int i = 0; i < m; i++)
+      for (unsigned int i = 0; i < m; i++)
       {
         dely[i] = c[i] + d[i] * y[i] - lam[i] - epsvecm[i] / y[i];
         dellam[i] = gvec[i] - a[i] * z - y[i] - b[i] + epsvecm[i] / lam[i];
@@ -491,14 +491,14 @@ DensityUpdateMMA::MmaSubSolve(Real m,
       if (m < n)
       {
         std::vector<Real> blam(m);
-        for (int i = 0; i < m; i++)
+        for (unsigned int i = 0; i < m; i++)
         {
           blam[i] = dellam[i] + dely[i] / diagy[i];
-          for (int j = 0; j < m; j++)
+          for (unsigned int j = 0; j < m; j++)
           {
             if (i == j)
               Alam[i][j] = diaglamyi[i];
-            for (int k = 0; k < n; k++)
+            for (unsigned int k = 0; k < n; k++)
             {
               blam[i] -= GG[i][k] * (delx[k] / diagx[k]);
               Alam[i][j] += GG[i][k] * diagxinv[k] * GG[j][k];
@@ -509,9 +509,9 @@ DensityUpdateMMA::MmaSubSolve(Real m,
         std::vector<Real> bb = blam;
         bb.push_back(delz);
         std::vector<std::vector<Real>> AA(m + 1, std::vector<Real>(m + 1));
-        for (int i = 0; i < m + 1; i++)
+        for (unsigned int i = 0; i < m + 1; i++)
         {
-          for (int j = 0; j < m + 1; j++)
+          for (unsigned int j = 0; j < m + 1; j++)
           {
             if (i < m && j < m)
               AA[i][j] = Alam[i][j];
@@ -534,10 +534,10 @@ DensityUpdateMMA::MmaSubSolve(Real m,
         }
         dlam.assign(std::begin(solut), std::next(std::begin(solut), m));
         dz = solut[m];
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
         {
           Real temp = 0;
-          for (int j = 0; j < m; j++)
+          for (unsigned int j = 0; j < m; j++)
           {
             temp += GG[j][i] * dlam[j];
           }
@@ -550,14 +550,14 @@ DensityUpdateMMA::MmaSubSolve(Real m,
       }
 
       std::vector<Real> dxsi(n, 0), deta(n, 0);
-      for (int i = 0; i < n; i++)
+      for (unsigned int i = 0; i < n; i++)
       {
         dxsi[i] = -xsi[i] + epsvecn[i] / (x[i] - alpha[i]) - (xsi[i] * dx[i]) / (x[i] - alpha[i]);
         deta[i] = -eta[i] + epsvecn[i] / (beta[i] - x[i]) + (eta[i] * dx[i]) / (beta[i] - x[i]);
       }
 
       std::vector<Real> dy(m), dmu(m), ds(m);
-      for (int i = 0; i < m; i++)
+      for (unsigned int i = 0; i < m; i++)
       {
         dy[i] = -dely[i] / diagy[i] + dlam[i] / diagy[i];
         dmu[i] = -mu[i] + epsvecm[i] / y[i] - (mu[i] * dy[i]) / y[i];
@@ -623,13 +623,13 @@ DensityUpdateMMA::MmaSubSolve(Real m,
       while (resinew > residunorm && itto < 50)
       {
         itto++;
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
         {
           x[i] = xold[i] + steg * dx[i];
           xsi[i] = xsiold[i] + steg * dxsi[i];
           eta[i] = etaold[i] + steg * deta[i];
         }
-        for (int i = 0; i < m; i++)
+        for (unsigned int i = 0; i < m; i++)
         {
           y[i] = yold[i] + steg * dy[i];
           lam[i] = lamold[i] + steg * dlam[i];
@@ -639,7 +639,7 @@ DensityUpdateMMA::MmaSubSolve(Real m,
         z = zold + steg * dz;
         zet = zetold + steg * dzet;
 
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
         {
           epsvecn[i] = epsi * een[i];
           ux1[i] = upp[i] - x[i];
@@ -655,9 +655,9 @@ DensityUpdateMMA::MmaSubSolve(Real m,
         std::fill(std::begin(plam), std::end(plam), 0);
         std::fill(std::begin(qlam), std::end(qlam), 0);
         std::fill(std::begin(gvec), std::end(gvec), 0);
-        for (int i = 0; i < m; i++)
+        for (unsigned int i = 0; i < m; i++)
         {
-          for (int j = 0; j < n; j++)
+          for (unsigned int j = 0; j < n; j++)
           {
             if (i == 0)
             {
@@ -670,14 +670,14 @@ DensityUpdateMMA::MmaSubSolve(Real m,
           }
         }
 
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
         {
           dpsidx[i] = plam[i] / ux2[i] - qlam[i] / xl2[i];
           rex[i] = dpsidx[i] - xsi[i] + eta[i];
         }
 
         rez = 0;
-        for (int i = 0; i < m; i++)
+        for (unsigned int i = 0; i < m; i++)
         {
           rey[i] = c[i] + d[i] * y[i] - mu[i] - lam[i];
           relam[i] = gvec[i] - a[i] * z - y[i] + s[i] - b[i];
