@@ -31,8 +31,8 @@ AnalyticComplianceSensitivity::validParams()
 AnalyticComplianceSensitivity::AnalyticComplianceSensitivity(const InputParameters & parameters)
   : StrainEnergyDensity(parameters),
     _sensitivity(declareProperty<Real>(_base_name + "sensitivity")),
-    _physical_density_name(coupledName("physical_density", 0)),
     _physical_density(coupledValue("physical_density")),
+    _physical_density_name(coupledName("physical_density", 0)),
     _youngs_modulus(getMaterialProperty<Real>(getParam<MaterialPropertyName>("youngs_modulus"))),
     _E0(getMaterialProperty<Real>(getParam<MaterialPropertyName>("E0"))),
     _Emin(getMaterialProperty<Real>(getParam<MaterialPropertyName>("Emin"))),
