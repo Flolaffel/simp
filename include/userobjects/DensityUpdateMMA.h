@@ -16,7 +16,6 @@
  * Element user object that performs SIMP optimization using the Method of Moving Asymptotes (MMA)
  * Use after Design Responses and Sensitivity Filter
  */
-
 class DensityUpdateMMA : public ElementUserObject
 {
 public:
@@ -51,8 +50,6 @@ protected:
   const std::vector<VariableName> _constraint_sensitivity_names;
   /// The constraint sensitivities
   std::vector<MooseVariable *> _constraint_sensitivities;
-  /// The volume fraction to be enforced
-  Real _volume_fraction;
   /// Column vector with the lower asymptotes from the previous iteration (provided that iter>1)
   MooseWritableVariable * _lower_asymptotes;
   /// Column vector with the upper asymptotes from the previous iteration (provided that iter>1)

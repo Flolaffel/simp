@@ -25,7 +25,6 @@ DensityUpdateMMA::validParams()
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
   params.addRequiredParam<VariableName>("objective_function_sensitivity",
                                         "Name of the objective function sensitivity variable.");
-  params.addParam<Real>("volume_fraction", "Volume Fraction");
   params.addParam<std::vector<VariableName>>("constraint_values",
                                              "Constraint value variable names");
   params.addParam<std::vector<VariableName>>("constraint_sensitivities",
@@ -108,7 +107,6 @@ void
 DensityUpdateMMA::gatherElementData()
 {
   _elem_data_map.clear();
-  _total_allowable_volume = 0;
 
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
@@ -138,11 +136,8 @@ DensityUpdateMMA::gatherElementData()
           0,
           0);
       _elem_data_map[elem_id] = data;
-      _total_allowable_volume += elem->volume();
     }
   _n_el = _elem_data_map.size();
-  _communicator.sum(_total_allowable_volume);
-  _total_allowable_volume *= _volume_fraction;
 }
 
 void
