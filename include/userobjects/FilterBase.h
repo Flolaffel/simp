@@ -15,9 +15,7 @@
 #include "MooseEnum.h"
 
 /**
- * Element user object that filters the objective function sensitivities via a radial average user
- * objects. This object can be used to apply a Solid Isotropic Material Penalization (SIMP) to
- * optimization.
+ * Element user object that provides basic filter functionality for derived classes
  */
 
 enum class FilterType
@@ -53,7 +51,7 @@ public:
   static InputParameters commonParameters();
 
 protected:
-  /// Whether to filter the densities
+  /// Filter type
   const FilterType _filter_type;
   /// The system mesh
   const MooseMesh & _mesh;
@@ -65,7 +63,7 @@ protected:
   unsigned int _nx;
   /// Number of elements in Y direction
   unsigned int _ny;
-  /// Number of elements
+  /// Total number of elements
   unsigned int _n_el;
   /// Lower X Coordinate of the generated mesh
   Real _xmin;
@@ -81,7 +79,7 @@ protected:
   std::vector<Real> _Hs;
 
   /**
-   * Prepares data needed for filtering of new densitys
+   * Prepares data needed for filtering
    */
   void prepareFilter();
 
@@ -90,7 +88,6 @@ protected:
   Real _beta_max;
   Real _beta;
   Real _eta;
-
 
 private:
 };

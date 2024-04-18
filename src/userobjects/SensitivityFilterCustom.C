@@ -18,8 +18,7 @@ SensitivityFilterCustom::validParams()
 {
   InputParameters params = FilterBase::validParams();
   params.addClassDescription("Computes the filtered sensitivities for "
-                             "sensitivity (inputs: x) or density filtering (inputs: dv). "
-                             "ReqInputs: filt_type, dc, r, mesh");
+                             "sensitivity filtering, density filtering or Heaviside projection.");
   params.addRequiredCoupledVar("sensitivities", "Name of the sensitivity variables.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
   params.addParam<VariableName>("filtered_density", "Filtered density variable name.");

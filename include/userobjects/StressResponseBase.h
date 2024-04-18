@@ -13,8 +13,8 @@
 #include "MooseTypes.h"
 
 /**
- * Element user object that copmutes the sensitivity need for a stress constrained Solid Isotropic
- * Material Penalization (SIMP) optimization.
+ * Element user object that provides basic functionality for stress constrained topology
+ * optimization
  */
 class StressResponseBase : public TODesignResponse
 {

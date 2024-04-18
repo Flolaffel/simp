@@ -13,9 +13,7 @@
 #include "MooseTypes.h"
 
 /**
- * Element user object that filters the objective function sensitivities via a radial average user
- * objects. This object can be used to apply a Solid Isotropic Material Penalization (SIMP) to
- * optimization.
+ * Element user object that filters the design density.
  */
 class DensityFilter : public FilterBase
 {
@@ -30,7 +28,7 @@ public:
   virtual void threadJoin(const UserObject & y) override;
 
 protected:
-  /// The pseudo-density variable
+  /// The design density variable
   MooseWritableVariable * _design_density;
   /// The physical density variable
   MooseWritableVariable * _physical_density;
@@ -44,13 +42,16 @@ private:
     ElementData(Real dens, Real filt_dens) : design_density(dens), filtered_density(filt_dens) {}
   };
 
-  /// Data structure to hold old density, sensitivity, volume, current density.
+  /// Data structure to hold current design density and filtered (physical) density
   std::map<dof_id_type, ElementData> _elem_data_map;
 
   /**
-   * Gathers element date necessary to perform the bisection algorithm for optimization
+   * Gathers element data
    */
   void gatherElementData();
 
+  /**
+   * Filters the density
+   */
   void densityFilter();
 };

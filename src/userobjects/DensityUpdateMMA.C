@@ -18,10 +18,8 @@ InputParameters
 DensityUpdateMMA::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
-  params.addClassDescription("Compute updated densities based on sensitivities using OC "
-                             "or MMA (inputs: x_old1/2, low, upp) to "
-                             "keep the volume constraint satisified. Offers density filtering "
-                             "(inputs: r, mesh). ReqInputs: x, x_phys, dc, dv, vol_frac");
+  params.addClassDescription("Computes updated densities based on objective function and "
+                             "constraint sensitivities using MMA.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
@@ -188,7 +186,7 @@ DensityUpdateMMA::performMmaLoop()
 
   /// MMA
 
-  // die hier spaeter als Parameter übergeben
+  // NOTE: could be parametrized if needed
   Real epsimin = 0.0000001;
   Real raa0 = 0.00001;
   Real move = _move_limit;
@@ -298,7 +296,7 @@ DensityUpdateMMA::performMmaLoop()
 
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    // Update the current filtered density for the current element
+    // Update the element data values
     elem_data.new_design_density = new_density[id];
     elem_data.new_lower = low[id];
     elem_data.new_upper = upp[id];

@@ -13,9 +13,8 @@
 #include "MooseTypes.h"
 
 /**
- * Element user object that performs SIMP optimization using a bisection algorithm using a volume
- * constraint.
- * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
+ * Element user object that performs SIMP optimization using the Method of Moving Asymptotes (MMA)
+ * Use after Design Responses and Sensitivity Filter
  */
 
 class DensityUpdateMMA : public ElementUserObject
@@ -101,14 +100,11 @@ private:
   };
 
   /**
-   * Gathers element date necessary to perform the bisection algorithm for optimization
+   * Gathers element data
    */
   void gatherElementData();
 
-  /// Total volume allowed for volume constraint
-  Real _total_allowable_volume;
-
-  /// Data structure to hold old density, sensitivity, volume, current density.
+  /// Data structure to hold old element data
   std::map<dof_id_type, ElementData> _elem_data_map;
 
   /// Number of elements
@@ -122,6 +118,9 @@ private:
    */
   void performMmaLoop();
 
+  /**
+   * Solves MMA subproblem with primal-dual Newton method
+   */
   std::vector<Real> MmaSubSolve(Real m,
                                 Real n,
                                 Real epsimin,

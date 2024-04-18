@@ -17,11 +17,11 @@ AnalyticComplianceSensitivity::validParams()
 {
   InputParameters params = StrainEnergyDensity::validParams();
   params.addClassDescription(
-      "Computes compliance sensitivity needed for SIMP method analytically.");
+      "Analytically computes compliance sensitivity needed for SIMP method.");
   params.addRequiredCoupledVar("physical_density", "Phyiscal density variable name.");
   params.addRequiredParam<MaterialPropertyName>("youngs_modulus",
                                                 "DerivativeParsedMaterial for Youngs modulus.");
-  params.addParam<MaterialPropertyName>("E0", "E0", "Real youngs modulus");
+  params.addParam<MaterialPropertyName>("E0", "E0", "Solid material youngs modulus");
   params.addParam<MaterialPropertyName>("Emin", "Emin", "Minimum youngs modulus");
   params.addParam<MaterialPropertyName>("p", "p", "SIMP exponent");
 
@@ -46,6 +46,8 @@ AnalyticComplianceSensitivity::computeQpProperties()
   // Call the parent class's method to compute the strain energy density
   StrainEnergyDensity::computeQpProperties();
   // dcdx = -power * x^(power-1) * (E0-Emin) * ue^T * k0 * ue
+  // with W = 1/2 * U * K * U = 1/2 * Ee * ue^T * k0 * ue
+  // --> ue^T * k0 * ue = 2 * W / E
   _sensitivity[_qp] = -_power[_qp] * std::pow(_physical_density[_qp], _power[_qp] - 1) *
                       (_E0[_qp] - _Emin[_qp]) * 2 * _strain_energy_density[_qp] /
                       _youngs_modulus[_qp];

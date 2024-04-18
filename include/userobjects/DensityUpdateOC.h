@@ -15,7 +15,7 @@
 /**
  * Element user object that performs SIMP optimization using a bisection algorithm using a volume
  * constraint.
- * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
+ * Use after Sensitivity Filter
  */
 class DensityUpdateOC : public FilterBase
 {
@@ -53,8 +53,6 @@ protected:
   const Real _lower_bound;
   /// Upper bound for bisection algorithm
   const Real _upper_bound;
-  /// Whether to filter the densities
-  const FilterType _filter_type;
   /// Heaviside parameter
   Real _beta_0;
   /// heaviside parameter

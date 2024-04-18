@@ -17,7 +17,8 @@ InputParameters
 HeavisideProjection::validParams()
 {
   InputParameters params = FilterBase::validParams();
-  params.addClassDescription("Beta projection for SIMP topology optimization");
+  params.addClassDescription(
+      "Density filter followed by Heaviside projection for SIMP topology optimization");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredCoupledVar("filtered_density", "Filtered density variable name.");
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");

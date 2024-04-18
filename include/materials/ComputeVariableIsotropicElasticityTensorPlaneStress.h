@@ -12,9 +12,9 @@
 #include "ComputeElasticityTensorBase.h"
 
 /**
- * ComputeVariableIsotropicElasticityTensor defines an elasticity tensor material for
- * isotropic materials in which the elastic constants (Young's modulus and Poisson's ratio)
- * vary as defined by material properties.
+ * ComputeVariableIsotropicElasticityTensorPlaneStress defines an plane stress elasticity tensor
+ * material for isotropic materials in which the elastic constants (Young's modulus and Poisson's
+ * ratio) vary as defined by material properties.
  */
 class ComputeVariableIsotropicElasticityTensorPlaneStress : public ComputeElasticityTensorBase
 {

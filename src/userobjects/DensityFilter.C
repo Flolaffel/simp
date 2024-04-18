@@ -17,7 +17,7 @@ InputParameters
 DensityFilter::validParams()
 {
   InputParameters params = FilterBase::validParams();
-  params.addClassDescription("Beta projection for SIMP topology optimization");
+  params.addClassDescription("Density Filter for SIMP topology optimization");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
   params.set<bool>("force_postaux") = true;
