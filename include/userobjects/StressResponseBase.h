@@ -48,6 +48,10 @@ protected:
   MooseVariable * _stress_yy;
   /// Stress_xy variable
   MooseVariable * _stress_xy;
+  /// Voigt stress vector for every Element
+  RealEigenMatrix _stress;
+  /// Elemental Von Mises stress vector
+  RealEigenVector _vonmises;
   /// Displacement variable names
   const std::vector<VariableName> _displacement_names;
   /// disp_x variable

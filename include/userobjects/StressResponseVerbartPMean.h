@@ -30,8 +30,4 @@ public:
   virtual void computeSensitivity() override;
 
 protected:
-  /// Voigt stress vector for every Element
-  RealEigenMatrix _stress;
-  /// Elemental Von Mises stress vector
-  RealEigenVector _vonmises;
 };

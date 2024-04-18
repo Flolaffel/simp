@@ -32,8 +32,4 @@ public:
 protected:
   /// Stress penalization Parameter
   const Real _q;
-  /// Voigt stress vector for every Element
-  RealEigenMatrix _stress;
-  /// Elemental Von Mises stress vector
-  RealEigenVector _vonmises;
 };
