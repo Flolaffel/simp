@@ -16,7 +16,7 @@ registerMooseObject("OptimizationApp", SensitivityFilterCustom);
 InputParameters
 SensitivityFilterCustom::validParams()
 {
-  InputParameters params = Filter::validParams();
+  InputParameters params = FilterBase::validParams();
   params.addClassDescription("Computes the filtered sensitivities for "
                              "sensitivity (inputs: x) or density filtering (inputs: dv). "
                              "ReqInputs: filt_type, dc, r, mesh");
@@ -29,7 +29,7 @@ SensitivityFilterCustom::validParams()
 }
 
 SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & parameters)
-  : Filter(parameters), _n_vars(coupledComponents("sensitivities"))
+  : FilterBase(parameters), _n_vars(coupledComponents("sensitivities"))
 {
   for (unsigned int i = 0; i < _n_vars; i++)
     _sensitivities.push_back(&writableVariable("sensitivities", i));

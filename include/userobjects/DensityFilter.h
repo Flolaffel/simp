@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Filter.h"
+#include "FilterBase.h"
 #include "MooseTypes.h"
 
 /**
@@ -17,7 +17,7 @@
  * objects. This object can be used to apply a Solid Isotropic Material Penalization (SIMP) to
  * optimization.
  */
-class DensityFilter : public Filter
+class DensityFilter : public FilterBase
 {
 public:
   static InputParameters validParams();

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Filter.h"
+#include "FilterBase.h"
 #include "MooseTypes.h"
 
 /**
@@ -18,7 +18,7 @@
  * optimization.
  */
 
-class SensitivityFilterCustom : public Filter
+class SensitivityFilterCustom : public FilterBase
 {
 public:
   static InputParameters validParams();

@@ -7,17 +7,17 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "Filter.h"
+#include "FilterBase.h"
 #include "MooseError.h"
 #include <algorithm>
 
-registerMooseObject("OptimizationApp", Filter);
+registerMooseObject("OptimizationApp", FilterBase);
 
 InputParameters
-Filter::validParams()
+FilterBase::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
-  params += Filter::commonParameters();
+  params += FilterBase::commonParameters();
   params.addClassDescription("Prepares filtering.");
   params.addParam<Real>("radius", "Cut-off radius for the averaging");
   params.addParam<MeshGeneratorName>(
@@ -29,7 +29,7 @@ Filter::validParams()
   return params;
 }
 
-Filter::Filter(const InputParameters & parameters)
+FilterBase::FilterBase(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _filter_type(getParam<MooseEnum>("filter_type").getEnum<FilterType>()),
     _mesh(_subproblem.mesh())
@@ -66,7 +66,7 @@ Filter::Filter(const InputParameters & parameters)
 }
 
 void
-Filter::finalize()
+FilterBase::finalize()
 {
   if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
   {
@@ -76,7 +76,7 @@ Filter::finalize()
 }
 
 void
-Filter::prepareFilter()
+FilterBase::prepareFilter()
 {
   // Only eligibale for elemente size of 1 mm
   int upp_r = ceil(_radius);
@@ -127,7 +127,7 @@ Filter::prepareFilter()
 }
 
 MooseEnum
-Filter::getFilterEnum()
+FilterBase::getFilterEnum()
 {
   auto filter = MooseEnum("none sensitivity density heaviside", "none");
 
@@ -139,11 +139,11 @@ Filter::getFilterEnum()
 }
 
 InputParameters
-Filter::commonParameters()
+FilterBase::commonParameters()
 {
   InputParameters params = emptyInputParameters();
 
-  params.addParam<MooseEnum>("filter_type", Filter::getFilterEnum(), "The filter type");
+  params.addParam<MooseEnum>("filter_type", FilterBase::getFilterEnum(), "The filter type");
 
   return params;
 }

@@ -16,7 +16,7 @@ registerMooseObject("OptimizationApp", DensityFilter);
 InputParameters
 DensityFilter::validParams()
 {
-  InputParameters params = Filter::validParams();
+  InputParameters params = FilterBase::validParams();
   params.addClassDescription("Beta projection for SIMP topology optimization");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
@@ -26,7 +26,7 @@ DensityFilter::validParams()
 }
 
 DensityFilter::DensityFilter(const InputParameters & parameters)
-  : Filter(parameters),
+  : FilterBase(parameters),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density"))
 {

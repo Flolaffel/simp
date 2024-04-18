@@ -28,12 +28,12 @@ enum class FilterType
   HEAVISIDE
 };
 
-class Filter : public ElementUserObject
+class FilterBase : public ElementUserObject
 {
 public:
   static InputParameters validParams();
 
-  Filter(const InputParameters & parameters);
+  FilterBase(const InputParameters & parameters);
 
   virtual void initialize() override{};
   virtual void execute() override{};

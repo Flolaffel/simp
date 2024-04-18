@@ -17,11 +17,12 @@ registerMooseObject("OptimizationApp", DensityUpdateOC);
 InputParameters
 DensityUpdateOC::validParams()
 {
-  InputParameters params = Filter::validParams();
-  params.addClassDescription(
-      "Compute updated densities based on sensitivities using OC with built in density filter");
+  InputParameters params = FilterBase::validParams();
+  params.addClassDescription("Compute updated densities based on sensitivities using OC with built "
+                             "in density filter and heaviside projection options");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
-  params.addCoupledVar("filtered_density", "Filtered density variable name.");
+  params.addCoupledVar("filtered_density",
+                       "Filtered density variable name. Only needed for Heaviside.");
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
   params.addRequiredParam<VariableName>("objective_function_sensitivity",
                                         "Name of the objective function sensitivity variable.");
@@ -30,13 +31,12 @@ DensityUpdateOC::validParams()
   params.addParam<Real>("bisection_lower_bound", 0, "Lower bound for the bisection algorithm.");
   params.addParam<Real>("bisection_upper_bound", 1e9, "Upper bound for the bisection algorithm.");
   params.addParam<Real>("move_limit", 0.2, "Move limit.");
-  params.addParam<MooseEnum>("filter_type", DensityUpdateOC::getFilterEnum(), "The filter type");
   params.set<int>("execution_order_group") = 2;
   return params;
 }
 
 DensityUpdateOC::DensityUpdateOC(const InputParameters & parameters)
-  : Filter(parameters),
+  : FilterBase(parameters),
     _design_density(&writableVariable("design_density")),
     _physical_density(&writableVariable("physical_density")),
     _objective_sensitivity_name(getParam<VariableName>("objective_function_sensitivity")),
@@ -46,11 +46,15 @@ DensityUpdateOC::DensityUpdateOC(const InputParameters & parameters)
     _volume_fraction(getParam<Real>("volume_fraction")),
     _move_limit(getParam<Real>("move_limit")),
     _lower_bound(getParam<Real>("bisection_lower_bound")),
-    _upper_bound(getParam<Real>("bisection_upper_bound")),
-    _filter_type(getParam<MooseEnum>("filter_type").getEnum<FilterType>())
+    _upper_bound(getParam<Real>("bisection_upper_bound"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
+
+  if (_filter_type == FilterType::SENSITIVITY)
+  {
+    mooseError("Option sensitivity filtering not allowed in OC density update.");
+  }
 
   if (_filter_type == FilterType::HEAVISIDE)
   {
@@ -123,7 +127,6 @@ DensityUpdateOC::gatherElementData()
       _elem_data_map[elem_id] = data;
       _total_allowable_volume += elem->volume();
     }
-  _n_el = _elem_data_map.size();
   _communicator.sum(_total_allowable_volume);
   _total_allowable_volume *= _volume_fraction;
 }
@@ -168,7 +171,7 @@ DensityUpdateOC::performOcLoop()
     // Assign new values
     for (auto && [id, elem_data] : _elem_data_map)
     {
-      // Update the current filtered density for the current element
+      // Update the element data
       elem_data.new_design_density = new_density[id];
       elem_data.new_filt_density = filt_density[id];
       elem_data.new_proj_density = proj_density[id];
@@ -242,15 +245,4 @@ DensityUpdateOC::heavisideProjection(std::vector<Real> filtered_density)
         (std::tanh(beta * _eta) + std::tanh(beta * (1 - _eta)));
   }
   return projected_density;
-}
-
-MooseEnum
-DensityUpdateOC::getFilterEnum()
-{
-  auto filter = MooseEnum("none density heaviside", "none");
-
-  filter.addDocumentation("none", "No filter.");
-  filter.addDocumentation("density", "Density filter.");
-  filter.addDocumentation("heaviside", "Heaviside projection with built in density filter.");
-  return filter;
 }

@@ -16,7 +16,7 @@ registerMooseObject("OptimizationApp", HeavisideProjection);
 InputParameters
 HeavisideProjection::validParams()
 {
-  InputParameters params = Filter::validParams();
+  InputParameters params = FilterBase::validParams();
   params.addClassDescription("Beta projection for SIMP topology optimization");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredCoupledVar("filtered_density", "Filtered density variable name.");
@@ -29,7 +29,7 @@ HeavisideProjection::validParams()
 }
 
 HeavisideProjection::HeavisideProjection(const InputParameters & parameters)
-  : Filter(parameters),
+  : FilterBase(parameters),
     _design_density(&writableVariable("design_density")),
     _filtered_density(&writableVariable("filtered_density")),
     _physical_density(&writableVariable("physical_density"))

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Filter.h"
+#include "FilterBase.h"
 #include "MooseTypes.h"
 
 /**
@@ -17,8 +17,7 @@
  * constraint.
  * ONLY USE AT timestep_end TO EXECUTE AFTER SensitivityFilter
  */
-
-class DensityUpdateOC : public Filter
+class DensityUpdateOC : public FilterBase
 {
 public:
   static InputParameters validParams();
