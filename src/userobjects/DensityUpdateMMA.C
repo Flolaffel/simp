@@ -43,6 +43,7 @@ DensityUpdateMMA::validParams()
 DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _design_density(&writableVariable("design_density")),
+    _old_design_density1(&writableVariable("old_design_density1")),
     _old_design_density2(&writableVariable("old_design_density2")),
     _objective_sensitivity_name(getParam<VariableName>("objective_function_sensitivity")),
     _objective_sensitivity(&_subproblem.getStandardVariable(_tid, _objective_sensitivity_name)),
