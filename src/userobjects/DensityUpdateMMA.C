@@ -49,8 +49,6 @@ DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
     _objective_sensitivity(&_subproblem.getStandardVariable(_tid, _objective_sensitivity_name)),
     _constraint_value_names(getParam<std::vector<VariableName>>("constraint_values")),
     _constraint_sensitivity_names(getParam<std::vector<VariableName>>("constraint_sensitivities")),
-    _old_design_density1(&writableVariable("old_design_density1")),
-    _old_design_density2(&writableVariable("old_design_density2")),
     _lower_asymptotes(&writableVariable("mma_lower_asymptotes")),
     _upper_asymptotes(&writableVariable("mma_upper_asymptotes")),
     _move_limit(getParam<Real>("move_limit"))
