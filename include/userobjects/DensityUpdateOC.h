@@ -30,20 +30,7 @@ public:
   virtual void finalize() override{};
   virtual void threadJoin(const UserObject &) override{};
 
-  /**
-   * Get filter type
-   * @return enum
-   */
-  static MooseEnum getFilterEnum();
-
 protected:
-  enum class FilterType
-  {
-    NONE,
-    DENSITY,
-    HEAVISIDE
-  };
-
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The filtered density variable
@@ -107,9 +94,6 @@ private:
 
   /// Data structure to hold old density, sensitivity, volume, current density.
   std::map<dof_id_type, ElementData> _elem_data_map;
-
-  /// Number of elements
-  unsigned int _n_el;
 
   /**
    * Performs the optimality criterion loop (bisection)
