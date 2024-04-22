@@ -67,6 +67,13 @@ FilterBase::FilterBase(const InputParameters & parameters)
 }
 
 void
+FilterBase::initialSetup()
+{
+  if (_filter_type != FilterType::NONE)
+    prepareFilter();
+}
+
+void
 FilterBase::finalize()
 {
   if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
