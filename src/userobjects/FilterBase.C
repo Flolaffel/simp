@@ -41,7 +41,6 @@ FilterBase::FilterBase(const InputParameters & parameters)
     _radius = getParam<Real>("radius");
     _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
     _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
-    _n_el = _nx * _ny;
     _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
     _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
     _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
@@ -77,11 +76,11 @@ void
 FilterBase::finalize()
 {
   if (_filter_type == FilterType::HEAVISIDE)
-{
-  if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
   {
-    _beta = std::min(1.25 * _beta, _beta_max);
-    _console << "Beta increased to " << _beta << "\n" << std::flush;
+    if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
+    {
+      _beta = std::min(1.25 * _beta, _beta_max);
+      _console << "Beta increased to " << _beta << "\n" << std::flush;
     }
   }
 }
