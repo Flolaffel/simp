@@ -38,12 +38,6 @@ HeavisideProjection::HeavisideProjection(const InputParameters & parameters)
 }
 
 void
-HeavisideProjection::initialSetup()
-{
-  prepareFilter();
-}
-
-void
 HeavisideProjection::initialize()
 {
   gatherElementData();

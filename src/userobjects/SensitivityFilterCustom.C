@@ -49,12 +49,6 @@ SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & paramet
 }
 
 void
-SensitivityFilterCustom::initialSetup()
-{
-  prepareFilter();
-}
-
-void
 SensitivityFilterCustom::initialize()
 {
   if (_filter_type != FilterType::NONE)
