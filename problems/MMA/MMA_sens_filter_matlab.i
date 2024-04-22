@@ -69,7 +69,6 @@ Emin = 1e-9
   [dV]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = 1
   []
   [rho]
     family = MONOMIAL
@@ -94,16 +93,20 @@ Emin = 1e-9
   [low]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = 1
   []
   [upp]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = 1
   []
 []
 
 [AuxKernels]
+  [copy_rho]
+    type = CopyValueAux
+    source = rho
+    variable = rhoPhys
+    execute_on = TIMESTEP_BEGIN
+  []
   [copy_compliance_sens]
     type = MaterialRealAux
     property = sensitivity
@@ -168,7 +171,7 @@ Emin = 1e-9
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
     E0 = ${E0}
@@ -186,16 +189,14 @@ Emin = 1e-9
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    update_scheme = MMA
-    compliance_sensitivity = dc
-    volume_sensitivity = dV
-    volume_fraction = ${vol_frac}
+    type = DensityUpdateMMA
+    objective_function_sensitivity = dc
+    constraint_values = 'V'
+    constraint_sensitivities = dV
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    constraint_values = 'V'
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
@@ -206,6 +207,7 @@ Emin = 1e-9
   []
   [vol_sens]
     type = VolumeResponse
+    usage = constraint
     limit = ${vol_frac}
     value = V
     sensitivity = dV
@@ -235,7 +237,7 @@ Emin = 1e-9
   []
 []
 
-#[Debug]
+# [Debug]
 #  show_material_props = true
 #  show_execution_order = ALWAYS
-#[]
+# []

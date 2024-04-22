@@ -190,7 +190,6 @@ Emin = 1e-9
     objective_function_sensitivity = dc
     constraint_values = 'V'
     constraint_sensitivities = dV
-    volume_fraction = ${vol_frac}
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
