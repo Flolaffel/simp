@@ -33,6 +33,7 @@ public:
 
   FilterBase(const InputParameters & parameters);
 
+  virtual void initialSetup() override;
   virtual void initialize() override{};
   virtual void execute() override{};
   virtual void finalize() override;
