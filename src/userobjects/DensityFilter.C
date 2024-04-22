@@ -20,6 +20,7 @@ DensityFilter::validParams()
   params.addClassDescription("Density Filter for SIMP topology optimization");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addRequiredCoupledVar("physical_density", "Physical density variable name.");
+  params.set<MooseEnum>("filter_type") = "density";
   params.set<bool>("force_postaux") = true;
   params.set<int>("execution_order_group") = 3;
   return params;
