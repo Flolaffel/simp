@@ -32,7 +32,8 @@ FilterBase::validParams()
 FilterBase::FilterBase(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _filter_type(getParam<MooseEnum>("filter_type").getEnum<FilterType>()),
-    _mesh(_subproblem.mesh())
+    _mesh(_subproblem.mesh()),
+    _n_el(_mesh.getMesh().n_elem())
 {
   if (_filter_type != FilterType::NONE)
   {
