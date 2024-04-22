@@ -76,10 +76,13 @@ FilterBase::initialSetup()
 void
 FilterBase::finalize()
 {
+  if (_filter_type == FilterType::HEAVISIDE)
+{
   if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
   {
     _beta = std::min(1.25 * _beta, _beta_max);
     _console << "Beta increased to " << _beta << "\n" << std::flush;
+    }
   }
 }
 
