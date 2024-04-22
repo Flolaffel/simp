@@ -101,9 +101,9 @@ VolumeResponse::computeSensitivity()
 {
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    if (_is_constraint)
-      elem_data.new_volume_sensitivity = 1.0 / (_limit * _n_el);
-    else if (_is_objective)
+    if (_is_objective)
       elem_data.new_volume_sensitivity = 1.0 / _n_el;
+    else if (_is_constraint)
+      elem_data.new_volume_sensitivity = 1.0 / (_limit * _n_el);
   }
 }
