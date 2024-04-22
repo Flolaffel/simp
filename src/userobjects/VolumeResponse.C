@@ -82,9 +82,11 @@ VolumeResponse::computeValue()
   }
 
   if (_is_objective)
+    // min: V_rel = V / V_0
     value /= _n_el;
   else if (_is_constraint)
   {
+    // g: V_rel / V_lim - 1 <= 0
     value /= _limit * _n_el;
     value -= 1;
   }
