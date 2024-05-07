@@ -230,7 +230,6 @@ Emin = 1e-9
 
 [Outputs]
   exodus = true
-  csv = true
 []
 
 [Postprocessors]
