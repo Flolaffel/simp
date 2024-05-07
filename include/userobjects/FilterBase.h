@@ -14,6 +14,8 @@
 #include "MooseTypes.h"
 #include "MooseEnum.h"
 
+#include "libmesh/eigen_sparse_matrix.h"
+
 /**
  * Element user object that provides basic filter functionality for derived classes
  */
@@ -76,8 +78,8 @@ protected:
   Real _ymax;
 
   /// Data structures to hold the filter weights
-  std::vector<std::vector<Real>> _H;
-  std::vector<Real> _Hs;
+  Eigen::SparseMatrix<Real> _H;
+  RealEigenVector _Hs;
 
   /**
    * Prepares data needed for filtering

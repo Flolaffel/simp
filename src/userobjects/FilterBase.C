@@ -11,6 +11,8 @@
 #include "MooseError.h"
 #include <algorithm>
 
+#include "sum.h"
+
 registerMooseObject("OptimizationApp", FilterBase);
 
 InputParameters
@@ -117,23 +119,18 @@ FilterBase::prepareFilter()
   }
 
   // Fill _H and with values sH at locations iH,jH
-  _H.resize(_nx * _ny, std::vector<Real>(_nx * _ny, 0));
-  _Hs.resize(_nx * _ny);
+  _H.resize(_n_el, _n_el);
+  _Hs.resize(_n_el);
+
+  std::vector<Eigen::Triplet<Real>> triplets(counter);
   for (int i = 0; i < counter; i++)
   {
-    _H[iH[i]][jH[i]] = sH[i];
+    triplets[i] = Eigen::Triplet<Real>(iH[i], jH[i], sH[i]);
   }
+  _H.setFromTriplets(triplets.begin(), triplets.end());
 
   // Fill _Hs with the column sums of _H
-  for (unsigned int i = 0; i < _H.size(); i++)
-  {
-    Real column_sum = 0;
-    for (unsigned int j = 0; j < _H[i].size(); j++)
-    {
-      column_sum += _H[i][j];
-    }
-    _Hs[i] = column_sum;
-  }
+  igl::sum(_H, 2, _Hs);
 }
 
 MooseEnum
