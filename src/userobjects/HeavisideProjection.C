@@ -92,13 +92,17 @@ HeavisideProjection::gatherElementData()
 void
 HeavisideProjection::densityFilter()
 {
+  RealEigenVector density(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    for (unsigned int j = 0; j < _n_el; j++)
-    {
-      elem_data.filtered_density += _H[id][j] * _elem_data_map[j].design_density;
-    }
-    elem_data.filtered_density /= _Hs[id];
+    density(id) = elem_data.design_density;
+  }
+
+  RealEigenVector filtered = (_H * density).array() / _Hs.array();
+
+  for (auto && [id, elem_data] : _elem_data_map)
+  {
+    elem_data.filtered_density = filtered(id);
   }
 }
 

@@ -146,79 +146,71 @@ SensitivityFilterCustom::gatherElementData()
 void
 SensitivityFilterCustom::updateSensitivitiesSensitivityFilter()
 {
-  std::vector<Real> temp_dc(_nx * _ny);
+  RealEigenVector sens(_n_el), dens(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    temp_dc[id] = elem_data.design_density * elem_data.sensitivities[0];
+    sens(id) = elem_data.sensitivities[0];
+    dens(id) = elem_data.design_density;
   }
+
+  RealEigenVector min = 0.001 * RealEigenVector::Ones(_n_el);
+  RealEigenVector temp = min.cwiseMax(dens);
+  RealEigenVector filt_sens =
+      (_H * (dens.array() * sens.array()).matrix()).array() / _Hs.array() / temp.array();
 
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    Real filt_dc = 0;
-    for (unsigned int j = 0; j < _nx * _ny; j++)
-    {
-      filt_dc += _H[id][j] * temp_dc[j];
-    }
-    filt_dc /= _Hs[id] * std::max(0.001, elem_data.design_density);
-    elem_data.filtered_sensitivities[0] = filt_dc;
+    elem_data.filtered_sensitivities[0] = filt_sens(id);
   }
 }
 
 void
 SensitivityFilterCustom::updateSensitivitiesDensityFilter()
 {
-  std::vector<std::vector<Real>> temp_sens(_n_vars, std::vector<Real>(_nx * _ny));
+  RealEigenMatrix temp_sens(_n_el, _n_vars);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    for (unsigned int var = 0; var < temp_sens.size(); var++)
+    for (unsigned int var = 0; var < temp_sens.cols(); var++)
     {
-      temp_sens[var][id] = elem_data.sensitivities[var] / _Hs[id];
+      temp_sens(id, var) = elem_data.sensitivities[var] / _Hs(id);
     }
   }
 
+  RealEigenMatrix filt_sens = _H * temp_sens;
+
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    std::vector<Real> filt_sens(_n_vars);
-    for (unsigned int j = 0; j < _nx * _ny; j++)
-    {
-      for (unsigned int var = 0; var < temp_sens.size(); var++)
-      {
-        filt_sens[var] += _H[id][j] * temp_sens[var][j];
-      }
-    }
-    elem_data.filtered_sensitivities = filt_sens;
+    std::vector<Real> assign(_n_vars);
+    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(id);
+    elem_data.filtered_sensitivities = assign;
   }
 }
 
 void
 SensitivityFilterCustom::updateSensitivitiesHeaviside()
 {
-  std::vector<Real> dx(_nx * _ny);
+  std::vector<Real> dx(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     dx[id] = (_beta * std::pow(1 / std::cosh(_beta * (elem_data.filtered_density - _eta)), 2)) /
              (std::tanh(_beta * _eta) + std::tanh(_beta * (1 - _eta)));
   }
 
-  std::vector<std::vector<Real>> temp_sens(_n_vars, std::vector<Real>(_nx * _ny));
+  RealEigenMatrix temp_sens(_n_el, _n_vars);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    for (unsigned int var = 0; var < temp_sens.size(); var++)
+    for (unsigned int var = 0; var < temp_sens.cols(); var++)
     {
-      temp_sens[var][id] = elem_data.sensitivities[var] * dx[id] / _Hs[id];
+      temp_sens(id, var) = elem_data.sensitivities[var] * dx[id] / _Hs(id);
     }
   }
 
+  RealEigenMatrix filt_sens = _H * temp_sens;
+
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    std::vector<Real> filt_sens(_n_vars);
-    for (unsigned int j = 0; j < _nx * _ny; j++)
-    {
-      for (unsigned int var = 0; var < temp_sens.size(); var++)
-      {
-        filt_sens[var] += _H[id][j] * temp_sens[var][j];
-      }
-    }
-    elem_data.filtered_sensitivities = filt_sens;
+    std::vector<Real> assign(filt_sens.row(id).data(),
+                             filt_sens.row(id).data() + filt_sens.row(id).size());
+    elem_data.filtered_sensitivities = assign;
   }
 }

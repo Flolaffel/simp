@@ -214,16 +214,9 @@ DensityUpdateOC::computeUpdatedDensity(Real current_density, Real dc, Real dv, R
 std::vector<Real>
 DensityUpdateOC::densityFilter(std::vector<Real> density)
 {
-  unsigned int n_el = density.size();
-  std::vector<Real> filt_density(n_el, 0);
-  for (unsigned int i = 0; i < n_el; i++)
-  {
-    for (unsigned int j = 0; j < n_el; j++)
-    {
-      filt_density[i] += _H[i][j] * density[j];
-    }
-    filt_density[i] /= _Hs[i];
-  }
+  RealEigenVector dens_temp = Eigen::Map<RealEigenVector>(density.data(), density.size());
+  RealEigenVector filt_temp = (_H * dens_temp).array() / _Hs.array();
+  std::vector<Real> filt_density(filt_temp.data(), filt_temp.data() + filt_temp.size());
   return filt_density;
 }
 
