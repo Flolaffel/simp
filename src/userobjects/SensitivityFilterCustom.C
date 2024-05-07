@@ -51,6 +51,7 @@ SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & paramet
 void
 SensitivityFilterCustom::initialize()
 {
+  TIME_SECTION("initialize", 2, "Initialize SensitvityFilterCustom");
   if (_filter_type != FilterType::NONE)
   {
     gatherElementData();
@@ -66,6 +67,7 @@ SensitivityFilterCustom::initialize()
 void
 SensitivityFilterCustom::execute()
 {
+  TIME_SECTION("execute", 3, "Execute SensitvityFilterCustom");
   if (_filter_type != FilterType::NONE)
   {
     // Grab the element data for each id
@@ -93,6 +95,7 @@ SensitivityFilterCustom::execute()
 void
 SensitivityFilterCustom::threadJoin(const UserObject & y)
 {
+  TIME_SECTION("threadJoin", 3, "Joining Threads");
   const SensitivityFilterCustom & uo = static_cast<const SensitivityFilterCustom &>(y);
   _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
 }
@@ -100,6 +103,7 @@ SensitivityFilterCustom::threadJoin(const UserObject & y)
 void
 SensitivityFilterCustom::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -146,6 +150,7 @@ SensitivityFilterCustom::gatherElementData()
 void
 SensitivityFilterCustom::updateSensitivitiesSensitivityFilter()
 {
+  TIME_SECTION("updateSensitivitiesSensitivityFilter", 3, "Filtering Objective Sensitivity");
   RealEigenVector sens(_n_el), dens(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -167,6 +172,7 @@ SensitivityFilterCustom::updateSensitivitiesSensitivityFilter()
 void
 SensitivityFilterCustom::updateSensitivitiesDensityFilter()
 {
+  TIME_SECTION("updateSensitivitiesDensityFilter", 3, "Updating Sensitivities");
   RealEigenMatrix temp_sens(_n_el, _n_vars);
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -189,6 +195,7 @@ SensitivityFilterCustom::updateSensitivitiesDensityFilter()
 void
 SensitivityFilterCustom::updateSensitivitiesHeaviside()
 {
+  TIME_SECTION("updateSensitivitiesHeaviside", 3, "Updating Sensitivities");
   std::vector<Real> dx(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {

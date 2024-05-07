@@ -29,6 +29,7 @@ StressResponseVerbartPMean::StressResponseVerbartPMean(const InputParameters & p
 void
 StressResponseVerbartPMean::computeStress()
 {
+  TIME_SECTION("computeStress", 3, "Computing stress at element center");
   _stress.resize(_n_el, 3);
   _vonmises.resize(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
@@ -43,6 +44,7 @@ StressResponseVerbartPMean::computeStress()
 void
 StressResponseVerbartPMean::computeValue()
 {
+  TIME_SECTION("computeValue", 3, "Computing P-norm value");
   Real PM = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -61,6 +63,7 @@ StressResponseVerbartPMean::computeValue()
 void
 StressResponseVerbartPMean::computeSensitivity()
 {
+  TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
   /// dsigma^PM/drho and dsigma^PM/dsigma_VMi
   RealEigenVector dPMdx(_n_el), dPMdVM(_n_el);
   Real sum = 0;

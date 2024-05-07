@@ -29,6 +29,7 @@ VolumeResponse::VolumeResponse(const InputParameters & parameters) : TODesignRes
 void
 VolumeResponse::initialize()
 {
+  TIME_SECTION("initialize", 2, "Initialize VolumeResponse");
   gatherElementData();
   computeValue();
   computeSensitivity();
@@ -37,6 +38,7 @@ VolumeResponse::initialize()
 void
 VolumeResponse::execute()
 {
+  TIME_SECTION("execute", 3, "Writing Volume Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -56,6 +58,7 @@ VolumeResponse::execute()
 void
 VolumeResponse::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gather Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -75,6 +78,7 @@ VolumeResponse::gatherElementData()
 void
 VolumeResponse::computeValue()
 {
+  TIME_SECTION("computeValue", 3, "Computing Volume Value");
   Real value = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -99,6 +103,7 @@ VolumeResponse::computeValue()
 void
 VolumeResponse::computeSensitivity()
 {
+  TIME_SECTION("computeSensitivity", 3, "Computing Volume Sensitivity");
   for (auto && [id, elem_data] : _elem_data_map)
   {
     if (_is_objective)

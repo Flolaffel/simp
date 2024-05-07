@@ -70,6 +70,7 @@ FilterBase::FilterBase(const InputParameters & parameters)
 void
 FilterBase::initialSetup()
 {
+  TIME_SECTION("initialSetup", 2, "Performing FilterBase Setup");
   if (_filter_type != FilterType::NONE)
     prepareFilter();
 }
@@ -77,6 +78,7 @@ FilterBase::initialSetup()
 void
 FilterBase::finalize()
 {
+  TIME_SECTION("finalize", 3, "Finalizing FilterBase");
   if (_filter_type == FilterType::HEAVISIDE)
   {
     if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
@@ -90,6 +92,7 @@ FilterBase::finalize()
 void
 FilterBase::prepareFilter()
 {
+  TIME_SECTION("prepareFilter", 3, "Preparing Filter");
   // NOTE: Only eligibale for elemente size of 1 mm
   int upp_r = ceil(_radius);
   int size = _n_el * std::pow((2 * (upp_r - 1) + 1), 2);

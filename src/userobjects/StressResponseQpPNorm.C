@@ -30,6 +30,7 @@ StressResponseQpPNorm::StressResponseQpPNorm(const InputParameters & parameters)
 void
 StressResponseQpPNorm::computeStress()
 {
+  TIME_SECTION("computeStress", 3, "Computing stress at element center");
   _stress.resize(_n_el, 3);
   _vonmises.resize(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
@@ -45,6 +46,7 @@ StressResponseQpPNorm::computeStress()
 void
 StressResponseQpPNorm::computeValue()
 {
+  TIME_SECTION("computeValue", 3, "Computing P-norm value");
   Real PN = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -63,6 +65,7 @@ StressResponseQpPNorm::computeValue()
 void
 StressResponseQpPNorm::computeSensitivity()
 {
+  TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
   /// dsigma^PN/dsigma_VMi
   RealEigenVector dPNdVM(_n_el);
   Real sum = 0;

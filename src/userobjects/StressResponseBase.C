@@ -82,6 +82,7 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
 void
 StressResponseBase::initialSetup()
 {
+  TIME_SECTION("initialSetup", 2, "Initial StressBase Setup");
   initializeDofVariables();
   initializeEMat();
   initializeKeMat();
@@ -90,6 +91,7 @@ StressResponseBase::initialSetup()
 void
 StressResponseBase::initialize()
 {
+  TIME_SECTION("initialize", 2, "Initialize StressBase");
   gatherNodalData();
   gatherElementData();
   initializeUVec();
@@ -101,6 +103,7 @@ StressResponseBase::initialize()
 void
 StressResponseBase::execute()
 {
+  TIME_SECTION("execute", 3, "Writing Stress Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -120,6 +123,7 @@ StressResponseBase::execute()
 void
 StressResponseBase::gatherNodalData()
 {
+  TIME_SECTION("gatherNodalData", 3, "Gathering Nodal Data");
   _nodal_data_map.clear();
 
   for (const auto & node : _mesh.getMesh().active_node_ptr_range())
@@ -138,6 +142,7 @@ StressResponseBase::gatherNodalData()
 void
 StressResponseBase::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -178,6 +183,7 @@ StressResponseBase::gatherElementData()
 void
 StressResponseBase::initializeDofVariables()
 {
+  TIME_SECTION("initializeDofVariables", 6, "Initializing DOF Variables");
   // all DOFs
   _n_dofs = _sys.system().n_dofs();
   _all_dofs.resize(_n_dofs);
@@ -249,6 +255,7 @@ StressResponseBase::getBMat(Real xi, Real eta)
 void
 StressResponseBase::initializeEMat()
 {
+  TIME_SECTION("initializeEMat", 6, "Initializing Elasticity Matrix");
   // Elasticity tensor E
   Real E_prefactor = _E0 / (1 - std::pow(_nu, 2));
   RealEigenMatrix E{{1, _nu, 0}, {_nu, 1, 0}, {0, 0, (1 - _nu) / 2}};
@@ -258,6 +265,7 @@ StressResponseBase::initializeEMat()
 void
 StressResponseBase::initializeKeMat()
 {
+  TIME_SECTION("initializeKeMat", 6, "Initializing Element Stiffness Matrix");
   /// Element stiffness matrix
   _KE.resize(8, 8);
 
@@ -289,6 +297,7 @@ StressResponseBase::initializeKeMat()
 void
 StressResponseBase::initializeUVec()
 {
+  TIME_SECTION("initializeUVec", 6, "Initializing Global Displacement Vector");
   /// Global displacement vector
   _U.resize(_n_dofs);
   for (auto && [id, node] : _nodal_data_map)
@@ -301,6 +310,7 @@ StressResponseBase::initializeUVec()
 RealEigenVector
 StressResponseBase::getLambda(std::vector<Real> gamma_red)
 {
+  TIME_SECTION("getLambda", 4, "Computing Lambda");
   /// vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
   SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
@@ -321,6 +331,7 @@ StressResponseBase::getLambda(std::vector<Real> gamma_red)
 RealEigenVector
 StressResponseBase::getT2(RealEigenVector lambda)
 {
+  TIME_SECTION("getT2", 4, "Computing T2");
   /// final sensitivity
   RealEigenVector T2(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
