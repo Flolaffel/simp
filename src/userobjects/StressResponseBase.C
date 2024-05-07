@@ -21,6 +21,7 @@
 #include "libmesh/numeric_vector.h"
 #include "libmesh/petsc_vector.h"
 #include "libmesh/mesh_tools.h"
+#include "libmesh/dof_map.h"
 
 #include <algorithm>
 
@@ -131,8 +132,7 @@ StressResponseBase::gatherNodalData()
     dof_id_type node_id = node->id();
 
     std::vector<dof_id_type> dofs;
-    dofs.push_back(node->dof_number(_sys.number(), 0, 0));
-    dofs.push_back(node->dof_number(_sys.number(), 1, 0));
+    _dof_map.dof_indices(node, dofs);
 
     NodalData data = NodalData(_disp_x->getNodalValue(*node), _disp_y->getNodalValue(*node), dofs);
     _nodal_data_map[node_id] = data;
