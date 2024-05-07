@@ -74,6 +74,7 @@ DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
 void
 DensityUpdateMMA::initialize()
 {
+  TIME_SECTION("initialize", 2, "Preparing Density Update");
   gatherElementData();
   performMmaLoop();
 }
@@ -81,6 +82,7 @@ DensityUpdateMMA::initialize()
 void
 DensityUpdateMMA::execute()
 {
+  TIME_SECTION("execute", 3, "Updating Density and Asymptotes");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -106,6 +108,7 @@ DensityUpdateMMA::execute()
 void
 DensityUpdateMMA::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -143,6 +146,7 @@ DensityUpdateMMA::gatherElementData()
 void
 DensityUpdateMMA::performMmaLoop()
 {
+  TIME_SECTION("performMmaLoop", 3, "Building MMA Subproblem");
   unsigned int m = _n_cons;
   unsigned int n = _n_el;
 
@@ -317,6 +321,7 @@ DensityUpdateMMA::MmaSubSolve(unsigned int m,
                               std::vector<Real> c,
                               std::vector<Real> d)
 {
+  TIME_SECTION("MmaSubSolve", 3, "Solving MMA Subproblem");
   std::vector<Real> een(n, 1);
   std::vector<Real> eem(m, 1);
   Real epsi = 1;
