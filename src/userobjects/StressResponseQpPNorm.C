@@ -106,17 +106,13 @@ StressResponseQpPNorm::computeSensitivity()
     for (auto & dof : _elem_to_dof_map[id])
     {
       gamma[dof] += dPNdVM(id) * std::pow(elem_data.physical_density, _q) * vector(x);
-      bool dof_is_free =
-          std::find(std::begin(_free_dofs), std::end(_free_dofs), dof) != std::end(_free_dofs);
-      if (dof_is_free)
-        gamma_red[dof] += dPNdVM(id) * std::pow(elem_data.physical_density, _q) * vector(x);
       x++;
     }
   }
 
   /// vector lambda
   RealEigenVector lambda;
-  lambda = getLambda(gamma_red);
+  lambda = getLambda(gamma, _fixed_dofs);
 
   /// final sensitivity
   RealEigenVector T1 = dPNdVM.cwiseProduct(beta);

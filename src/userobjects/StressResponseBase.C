@@ -308,21 +308,26 @@ StressResponseBase::initializeUVec()
 }
 
 RealEigenVector
-StressResponseBase::getLambda(std::vector<Real> gamma_red)
+StressResponseBase::getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs)
 {
   TIME_SECTION("getLambda", 4, "Computing Lambda");
   /// vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
   SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
-  PetscVector<Number> gamma_red_petsc(_communicator), lambda_petsc(_communicator);
-  gamma_red_petsc.init(_n_dofs);
-  gamma_red_petsc = gamma_red;
-  lambda_petsc.init(_n_dofs);
+  PetscVector<Number> gamma_red(_communicator, _n_dofs), lambda_petsc(_communicator, _n_dofs);
+  gamma_red = gamma;
 
-  solver.solve(K, K, lambda_petsc, gamma_red_petsc, 1e-8, 100);
+  std::vector<PetscScalar> zeros(fixed_dofs.size());
+  VecSetValues(gamma_red.vec(),
+               cast_int<PetscInt>(fixed_dofs.size()),
+               numeric_petsc_cast(fixed_dofs.data()),
+               zeros.data(),
+               INSERT_VALUES);
+
+  solver.solve(K, K, lambda_petsc, gamma_red, 1e-8, 100);
 
   RealEigenVector lambda(_n_dofs);
-  for (int i = 0; i < _n_dofs; i++)
+  for (unsigned int i = 0; i < _n_dofs; i++)
     lambda(i) = lambda_petsc(i);
 
   return lambda;

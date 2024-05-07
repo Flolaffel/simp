@@ -168,7 +168,7 @@ protected:
   /**
    * Copmutes lambda from system matrix and gamma_red
    */
-  RealEigenVector getLambda(std::vector<Real> gamma_red);
+  RealEigenVector getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs);
 
   /**
    * Copmutes T2 from lambda
