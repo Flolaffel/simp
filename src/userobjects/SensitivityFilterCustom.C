@@ -19,6 +19,7 @@ SensitivityFilterCustom::validParams()
   InputParameters params = FilterBase::validParams();
   params.addClassDescription("Computes the filtered sensitivities for "
                              "sensitivity filtering, density filtering or Heaviside projection.");
+  params.addRequiredParam<UserObjectName>("map_UO", "Radial Average user object");
   params.addRequiredCoupledVar("sensitivities", "Name of the sensitivity variables.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
   params.addParam<VariableName>("filtered_density", "Filtered density variable name.");
@@ -28,7 +29,9 @@ SensitivityFilterCustom::validParams()
 }
 
 SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & parameters)
-  : FilterBase(parameters), _n_vars(coupledComponents("sensitivities"))
+  : FilterBase(parameters),
+    _n_vars(coupledComponents("sensitivities")),
+    _map(getUserObject<GatherElementData>("map_UO").getMap())
 {
   for (unsigned int i = 0; i < _n_vars; i++)
     _sensitivities.push_back(&writableVariable("sensitivities", i));
@@ -51,9 +54,12 @@ SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & paramet
 void
 SensitivityFilterCustom::initialize()
 {
+  _start = std::chrono::system_clock::now();
+  TIME_SECTION("initialize", 2, "Initialize SensitvityFilterCustom");
   if (_filter_type != FilterType::NONE)
   {
     gatherElementData();
+    threadJoin(*this);
     if (_filter_type == FilterType::SENSITIVITY)
       updateSensitivitiesSensitivityFilter();
     else if (_filter_type == FilterType::DENSITY)
@@ -141,6 +147,9 @@ SensitivityFilterCustom::gatherElementData()
         _elem_data_map[elem_id] = data;
       }
     }
+
+  std::cout << _elem_data_map.size() << "\n\n";
+  std::cout << _map.size() << "\n\n";
 }
 
 void

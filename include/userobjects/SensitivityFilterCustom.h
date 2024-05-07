@@ -11,6 +11,7 @@
 
 #include "FilterBase.h"
 #include "MooseTypes.h"
+#include "GatherElementData.h"
 
 /**
  * Element user object that filters the objective function (and constraint) sensitivities, depending
@@ -61,6 +62,8 @@ private:
 
   /// Data structure to hold element data
   std::map<dof_id_type, ElementData> _elem_data_map;
+
+  const std::map<dof_id_type, GatherElementData::ElementData> & _map;
 
   /**
    * Gathers element data
