@@ -109,16 +109,11 @@ StressResponseBase::execute()
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
     ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)
-        ->setNodalValue(elem_data.stress_sensitivity);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
+  dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)->setNodalValue(elem_data.stress_sensitivity);
 }
 
 void

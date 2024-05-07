@@ -87,8 +87,9 @@ DensityUpdateMMA::execute()
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
     ElementData & elem_data = elem_data_iter->second;
     dynamic_cast<MooseVariableFE<Real> *>(_design_density)
         ->setNodalValue(elem_data.new_design_density);
@@ -98,11 +99,6 @@ DensityUpdateMMA::execute()
         ->setNodalValue(elem_data.old_design_density1);
     dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->setNodalValue(elem_data.new_lower);
     dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->setNodalValue(elem_data.new_upper);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
 }
 
 void

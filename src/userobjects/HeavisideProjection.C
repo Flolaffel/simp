@@ -52,18 +52,14 @@ HeavisideProjection::execute()
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
     ElementData & elem_data = elem_data_iter->second;
     dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
         ->setNodalValue(elem_data.filtered_density);
     dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
         ->setNodalValue(elem_data.projected_density);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
 }
 
 void
