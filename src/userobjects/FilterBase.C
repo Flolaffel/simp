@@ -92,7 +92,7 @@ FilterBase::prepareFilter()
 {
   // NOTE: Only eligibale for elemente size of 1 mm
   int upp_r = ceil(_radius);
-  int size = _nx * _ny * std::pow((2 * (upp_r - 1) + 1), 2);
+  int size = _n_el * std::pow((2 * (upp_r - 1) + 1), 2);
   std::vector<int> iH(size, 1);
   std::vector<int> jH(size, 1);
   std::vector<Real> sH(size, 0);
