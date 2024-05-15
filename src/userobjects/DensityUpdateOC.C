@@ -81,21 +81,21 @@ DensityUpdateOC::execute()
   mooseAssert(elem_data_iter != _elem_data_map.end(),
               "Element data not found for the current element id.");
 
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+      ->setNodalValue(elem_data.new_design_density);
+  if (_filter_type == FilterType::NONE)
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
         ->setNodalValue(elem_data.new_design_density);
-    if (_filter_type == FilterType::NONE)
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_design_density);
-    if (_filter_type == FilterType::DENSITY)
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_filt_density);
-    if (_filter_type == FilterType::HEAVISIDE)
-    {
-      dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
-          ->setNodalValue(elem_data.new_filt_density);
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_proj_density);
+  if (_filter_type == FilterType::DENSITY)
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+        ->setNodalValue(elem_data.new_filt_density);
+  if (_filter_type == FilterType::HEAVISIDE)
+  {
+    dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
+        ->setNodalValue(elem_data.new_filt_density);
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+        ->setNodalValue(elem_data.new_proj_density);
   }
 }
 
