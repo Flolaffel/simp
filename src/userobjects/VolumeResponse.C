@@ -67,8 +67,6 @@ VolumeResponse::gatherElementData()
           0);
       _elem_data_map[elem_id] = data;
     }
-
-  _n_el = _elem_data_map.size();
 }
 
 void
