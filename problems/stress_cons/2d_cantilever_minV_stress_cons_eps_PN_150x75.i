@@ -1,5 +1,8 @@
 nx = 150
 ny = 75
+xmax = 100
+ymax = 50
+l_el = ${fparse xmax/nx}
 p = 3
 filter_radius = 2.5
 E0 = 1
@@ -24,21 +27,21 @@ start_dens = 1
     nx = ${nx}
     ny = ${ny}
     xmin = 0
-    xmax = ${nx}
+    xmax = ${xmax}
     ymin = 0
-    ymax = ${ny}
+    ymax = ${ymax}
   []
   [node]
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '${fparse nx} 0 0; ${fparse nx-1} 0 0; ${fparse nx-2} 0 0; ${fparse nx-3} 0 0; ${fparse nx-4} 0 0; ${fparse nx-5} 0 0'
+    coord = '${fparse xmax} 0 0; ${fparse xmax-l_el} 0 0; ${fparse xmax-2*l_el} 0 0; ${fparse xmax-3*l_el} 0 0; ${fparse xmax-4*l_el} 0 0; ${fparse xmax-5*l_el} 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 ${fparse ny} 0'
+    coord = '0 50 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -178,7 +181,7 @@ start_dens = 1
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
   []
@@ -256,8 +259,7 @@ start_dens = 1
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    update_scheme = MMA
+    type = DensityUpdateMMA
     objective_function_sensitivity = dV
     constraint_values = 'PN'
     constraint_sensitivities = 'dPN'
@@ -265,8 +267,6 @@ start_dens = 1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    filter_type = density
-    mesh_generator = MeshGenerator
     move_limit = 0.01
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
@@ -274,6 +274,13 @@ start_dens = 1
     type = SensitivityFilterCustom
     filter_type = density
     sensitivities = 'dc dV dPN'
+    mesh_generator = MeshGenerator
+  []
+  [filt_dens]
+    type = DensityFilter
+    design_density = rho
+    physical_density = rhoPhys
+    radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
   [stress_sens]
@@ -284,6 +291,7 @@ start_dens = 1
     sensitivity = dPN
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
+    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
@@ -300,11 +308,18 @@ start_dens = 1
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1
-  num_steps = 363
+  num_steps = 324
 []
 
 [Outputs]
   exodus = true
+  # [pgraph]
+  #   type = PerfGraphOutput
+  #   execute_on = 'initial final'  # Default is "final"
+  #   level = 3                     # Default is 1
+  #   heaviest_branch = true        # Default is false
+  #   heaviest_sections = 7         # Default is 0
+  # []
 []
 
 [Debug]

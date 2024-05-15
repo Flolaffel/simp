@@ -288,6 +288,7 @@ start_dens = 1
     sensitivity = dPN
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
+    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
