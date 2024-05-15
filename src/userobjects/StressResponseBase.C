@@ -305,7 +305,7 @@ void
 StressResponseBase::initializeUVec()
 {
   TIME_SECTION("initializeUVec", 6, "Initializing Global Displacement Vector");
-  /// Global displacement vector
+  // Global displacement vector
   _U.resize(_n_dofs);
   for (auto && [id, node] : _nodal_data_map)
   {
@@ -318,7 +318,7 @@ RealEigenVector
 StressResponseBase::getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs)
 {
   TIME_SECTION("getLambda", 4, "Computing Lambda");
-  /// vector lambda
+  // vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
   SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
   PetscVector<Number> gamma_red(_communicator, _n_dofs), lambda_petsc(_communicator, _n_dofs);
@@ -344,7 +344,7 @@ RealEigenVector
 StressResponseBase::getT2(RealEigenVector lambda)
 {
   TIME_SECTION("getT2", 4, "Computing T2");
-  /// final sensitivity
+  // final sensitivity
   RealEigenVector T2(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
