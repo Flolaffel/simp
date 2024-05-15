@@ -52,9 +52,9 @@ DensityFilter::execute()
   mooseAssert(elem_data_iter != _elem_data_map.end(),
               "Element data not found for the current element id.");
 
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-        ->setNodalValue(elem_data.filtered_density);
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+      ->setNodalValue(elem_data.filtered_density);
 }
 
 void
