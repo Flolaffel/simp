@@ -108,8 +108,8 @@ StressResponseEpsPNorm::computeSensitivity()
     for (auto & dof : _elem_to_dof_map[id])
     {
       gamma[dof] += dPNdVM(id) * elem_data.physical_density /
-                          (_eps * (1 - elem_data.physical_density) + elem_data.physical_density) *
-                          vector(x);
+                    (_eps * (1 - elem_data.physical_density) + elem_data.physical_density) *
+                    vector(x);
       x++;
     }
   }
