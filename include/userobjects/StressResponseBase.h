@@ -38,6 +38,8 @@ protected:
   /// DOF map
   const DofMap & _dof_map;
   std::map<dof_id_type, std::vector<dof_id_type>> _elem_to_node_map;
+  /// Name of the mesh generator to get MeshMetaData from
+  MeshGeneratorName _mesh_generator;
   /// Stress variable names
   const std::vector<VariableName> _stress_names;
   /// Von Mises stress variable
