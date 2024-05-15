@@ -29,6 +29,7 @@ TODesignResponse::validParams()
 
 TODesignResponse::TODesignResponse(const InputParameters & parameters)
   : ElementUserObject(parameters),
+    _n_el(_mesh.getMesh().n_elem()),
     _usage(getParam<MooseEnum>("usage").getEnum<Usage>()),
     _is_objective(_usage == Usage::OBJECTIVE),
     _is_constraint(_usage == Usage::CONSTRAINT),
