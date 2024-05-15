@@ -2,9 +2,14 @@ nx = 200
 ny = 200
 p = 3
 vol_frac = 0.5
-filter_radius = 0.65
+filter_radius = 1.5
 E0 = 1
-Emin = 1e-6
+Emin = 1e-9
+
+
+[GlobalParams]
+  displacements = 'u_x u_y'
+[]
 
 [Mesh]
   [domain]
@@ -25,8 +30,67 @@ Emin = 1e-6
   []
 []
 
-[GlobalParams]
-  displacements = 'u_x u_y'
+[AuxVariables]
+  [Emin]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${Emin}
+  []
+  [p]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${p}
+  []
+  [E0]
+    family = MONOMIAL
+    order = CONSTANT
+    initial_condition = ${E0}
+  []
+  [dc]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [V]
+    family = SCALAR
+    order = FIRST
+  []
+  [dV]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [rho]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [rhoPhys]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [rho_old1]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [rho_old2]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [low]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [upp]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+[]
+
+[AuxKernels]
+  [copy_compliance_sens]
+    type = MaterialRealAux
+    property = sensitivity
+    variable = dc
+    execute_on = TIMESTEP_END
+  []
 []
 
 [Variables]
@@ -42,6 +106,7 @@ Emin = 1e-6
       [stress_div]
         strain = SMALL
         add_variables = true
+        incremental = false
         global_strain = global_strain
         generate_output = 'strain_xx strain_xy strain_yy stress_xx stress_xy
                            stress_yy vonmises_stress'
@@ -59,33 +124,6 @@ Emin = 1e-6
   []
 []
 
-[AuxVariables]
-  [rho]
-    family = MONOMIAL
-    order = CONSTANT
-  []
-  [Dc]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = -1.0
-  []
-  [p]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = ${p}
-  []
-  [Emin]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = ${Emin}
-  []
-  [E0]
-    family = MONOMIAL
-    order = CONSTANT
-    initial_condition = ${E0}
-  []
-[]
-
 [ICs]
   [rho_IC]
     type = BoundingBoxIC
@@ -97,7 +135,37 @@ Emin = 1e-6
     inside = 0
     outside = ${vol_frac}
   []
-[] 
+  [rho_phys_IC]
+    type = BoundingBoxIC
+    variable = rhoPhys
+    x1 = -7.5
+    x2 = 7.51
+    y1 = -7.5
+    y2 = 7.51
+    inside = 0
+    outside = ${vol_frac}
+  []
+  [rho_old1_IC]
+    type = BoundingBoxIC
+    variable = rho_old1
+    x1 = -7.5
+    x2 = 7.51
+    y1 = -7.5
+    y2 = 7.51
+    inside = 0
+    outside = ${vol_frac}
+  []
+  [rho_old2_IC]
+    type = BoundingBoxIC
+    variable = rho_old2
+    x1 = -7.5
+    x2 = 7.51
+    y1 = -7.5
+    y2 = 7.51
+    inside = 0
+    outside = ${vol_frac}
+  []
+[]
 
 [BCs]
   [Periodic]
@@ -135,9 +203,13 @@ Emin = 1e-6
     property_name = E_phys
   []
   [dc]
-    type = ComplianceSensitivity
-    design_density = rho
+    type = AnalyticComplianceSensitivity
+    physical_density = rhoPhys
     youngs_modulus = E_phys
+    incremental = false
+    E0 = ${E0}
+    Emin = ${Emin}
+    p = ${p}
   []
   [compute_stress]
     type = ComputeLinearElasticStress
@@ -146,32 +218,65 @@ Emin = 1e-6
 
 [UserObjects]
   [update]
-    type = DensityUpdate
-    density_sensitivity = Dc
+    type = DensityUpdateMMA
+    objective_function_sensitivity = dc
+    constraint_values = 'V'
+    constraint_sensitivities = dV
     design_density = rho
-    volume_fraction = ${vol_frac}
-    execute_on = TIMESTEP_BEGIN
+    old_design_density1 = rho_old1
+    old_design_density2 = rho_old2
+    mma_lower_asymptotes = low
+    mma_upper_asymptotes = upp
   []
-  [rad_avg]
-    type = RadialAverage
-    radius = ${filter_radius}
-    weights = linear
-    prop_name = sensitivity
-    execute_on = TIMESTEP_END
-    force_preaux = true
-  []
+  # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
   [calc_sense]
-    type = SensitivityFilter
-    density_sensitivity = Dc
+    type = SensitivityFilterCustom
+    sensitivities = 'dc dV'
+    mesh_generator = domain
+    filter_type = density
+    radius = ${filter_radius}
+  []
+  [vol_sens]
+    type = VolumeResponse
+    usage = constraint
+    limit = ${vol_frac}
+    value = V
+    sensitivity = dV
+    physical_density = rhoPhys
+  []
+  [heaviside]
+    type = DensityFilter
     design_density = rho
-    filter_UO = rad_avg
-    execute_on = TIMESTEP_END
-    force_postaux = true
+    physical_density = rhoPhys
+    mesh_generator = domain
+    radius = ${filter_radius}
   []
   [opt_conv]
     type = Terminator
-    expression = 'stop_vol < 1e-3 & SE_stop < 1e-3'
+    expression = 'change < 0.0075 & change != 0'
     execute_on = TIMESTEP_END
+    execution_order_group = 5
+  []
+[]
+
+[Postprocessors]
+  [change]
+    type = VectorPostprocessorComponent
+    vectorpostprocessor = max_abs_diff
+    vector_name = Difference
+    index = 0
+    execute_on = 'initial timestep_end'
+  []
+[]
+
+[VectorPostprocessors]
+  [max_abs_diff]
+    type = ElementVariablesDifferenceMax
+    compare_a = rho
+    compare_b = rho_old1
+    furthest_from_zero = true
+    contains_complete_history = true
+    execution_order_group = 10
   []
 []
 
@@ -185,56 +290,16 @@ Emin = 1e-6
 [Executioner]
   type = Transient
   solve_type = PJFNK
-  petsc_options_iname = '-pc_type -pc_factor_mat_solver_package -pc_factor_shift_type -pc_factor_shift_amount'
-  petsc_options_value = 'lu       superlu_dist                  NONZERO               1e-15'
-  dt = 1.0
-  num_steps = 500
+  #petsc_options_iname = '-pc_type -pc_factor_mat_solver_package -pc_factor_shift_type -pc_factor_shift_amount'
+  #petsc_options_value = 'lu       superlu_dist                  NONZERO               1e-15'
+  petsc_options_iname = '-pc_type -pc_factor_mat_solver_package'
+  petsc_options_value = 'lu       superlu_dist'
   nl_abs_tol = 1e-8
+  l_abs_tol = 1e-8
+  dt = 1.0
+  num_steps = 300
 []
 
 [Outputs]
   exodus = true
-[]
-
-[Postprocessors]
-  [total_vol]
-    type = ElementIntegralVariablePostprocessor
-    variable = rho
-    execute_on = 'INITIAL TIMESTEP_END'
-  []
-  [vol_change]
-    type = ChangeOverTimePostprocessor
-    postprocessor = total_vol
-    change_with_respect_to_initial = false
-    execute_on = 'initial timestep_end'
-  []
-  [n_el]
-    type = ConstantPostprocessor
-    value = ${fparse nx*ny}
-  []
-  [stop_vol]
-    type = ParsedPostprocessor
-    function = 'abs(vol_change/n_el)'
-    pp_names = 'vol_change n_el'
-  []
-  [SE]
-    type = ElementIntegralMaterialProperty
-    mat_prop = strain_energy_density
-  []
-  [SE_stop]
-    type = ChangeOverTimePostprocessor
-    postprocessor = SE
-    change_with_respect_to_initial = false
-    compute_relative_change = true
-    take_absolute_value = true
-    execute_on = 'initial timestep_end'
-  []
-  [average_sxx]
-    type = ElementAverageValue
-    variable = stress_xx
-  []
-  [average_sxy]
-    type = ElementAverageValue
-    variable = stress_xy
-  []
 []
