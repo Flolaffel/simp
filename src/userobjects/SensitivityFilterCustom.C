@@ -77,13 +77,13 @@ SensitivityFilterCustom::execute()
     mooseAssert(elem_data_iter != _elem_data_map.end(),
                 "Element data not found for the current element id.");
 
-      ElementData & elem_data = elem_data_iter->second;
-      int i = 0;
-      for (auto & sensitivity : _sensitivities)
-      {
-        dynamic_cast<MooseVariableFE<Real> *>(sensitivity)
-            ->setNodalValue(elem_data.filtered_sensitivities[i]);
-        i++;
+    ElementData & elem_data = elem_data_iter->second;
+    int i = 0;
+    for (auto & sensitivity : _sensitivities)
+    {
+      dynamic_cast<MooseVariableFE<Real> *>(sensitivity)
+          ->setNodalValue(elem_data.filtered_sensitivities[i]);
+      i++;
     }
   }
 }
