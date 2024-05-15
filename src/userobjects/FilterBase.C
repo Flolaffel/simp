@@ -83,6 +83,8 @@ FilterBase::finalize()
   TIME_SECTION("finalize", 3, "Finalizing FilterBase");
   if (_filter_type == FilterType::HEAVISIDE)
   {
+    if (_t_step == 1)
+      _console << "Beta start value is " << _beta_0 << "\n" << std::flush;
     if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
     {
       _beta = std::min(1.25 * _beta, _beta_max);
