@@ -70,8 +70,20 @@ protected:
   const Real _P;
   /// Elasticity matrix
   RealEigenMatrix _E;
-  /// Element number
-  unsigned int _n_el;
+  /// Number of elements in X direction
+  unsigned int _nx;
+  /// Number of elements in Y direction
+  unsigned int _ny;
+  /// Lower X Coordinate of the generated mesh
+  Real _xmin;
+  /// Upper X Coordinate of the generated mesh
+  Real _xmax;
+  /// Lower Y Coordinate of the generated mesh
+  Real _ymin;
+  /// Upper Y Coordinate of the generated mesh
+  Real _ymax;
+  /// Element size
+  Real _l_el;
   /// Number of DOFs
   dof_id_type _n_dofs;
   /// Vector of all DOFs

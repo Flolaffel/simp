@@ -41,6 +41,9 @@ StressResponseBase::validParams()
   params.addParam<Real>("P", 12, "Aggregation function parameter");
   params.addParam<std::string>(
       "system_matrix", "system", "The matrix tag name corresponding to the system matrix.");
+  params.addParam<MeshGeneratorName>(
+      "mesh_generator",
+      "Name of the mesh generator to be used to retrieve control drums information.");
   return params;
 }
 
@@ -55,6 +58,18 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
     _p(getParam<Real>("p")),
     _P(getParam<Real>("P"))
 {
+  _mesh_generator = getParam<MeshGeneratorName>("mesh_generator");
+  _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
+  _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
+  _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
+  _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
+  _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
+  _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+
+  _l_el = (_xmax - _xmin) / _nx;
+  if (_l_el - (_ymax - _ymin) / _ny > 1e-3)
+    mooseError("Please use quadratic elements for topology optimization.");
+
   if (isParamValid("stresses"))
     for (unsigned int i = 0; i < _stress_names.size(); i++)
     {
@@ -112,7 +127,7 @@ StressResponseBase::execute()
   mooseAssert(elem_data_iter != _elem_data_map.end(),
               "Element data not found for the current element id.");
 
-    ElementData & elem_data = elem_data_iter->second;
+  ElementData & elem_data = elem_data_iter->second;
   dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)->setNodalValue(elem_data.stress_sensitivity);
 }
 
@@ -214,7 +229,6 @@ StressResponseBase::initializeDofVariables()
                       std::inserter(_free_dofs, std::begin(_free_dofs)));
 
   // Elemen to DOF map
-  _n_el = _mesh.nElem();
   _elem_to_dof_map.resize(_n_el);
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
@@ -233,9 +247,7 @@ StressResponseBase::initializeDofVariables()
 RealEigenMatrix
 StressResponseBase::getBMat(Real xi, Real eta)
 {
-  // only true for unit element size
-  int l = 1;
-  Real B_prefactor = 1.0 / (2 * l);
+  Real B_prefactor = 1.0 / (2 * _l_el);
   RealEigenMatrix B{{eta - 1, 0, xi - 1},
                     {0, xi - 1, eta - 1},
                     {1 - eta, 0, -1 - xi},
@@ -275,7 +287,7 @@ StressResponseBase::initializeKeMat()
 
   // Jacobi-matrix for unit thickness
   int t = 1;
-  std::vector<std::vector<Real>> J{{0.5, 0}, {0, 0.5}};
+  std::vector<std::vector<Real>> J{{_l_el / 2, 0}, {0, _l_el / 2}};
   Real det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
 
   for (int qp = 0; qp < 4; qp++)

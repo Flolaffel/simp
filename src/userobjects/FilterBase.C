@@ -47,6 +47,10 @@ FilterBase::FilterBase(const InputParameters & parameters)
     _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
     _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
     _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+
+    _l_el = (_xmax - _xmin) / _nx;
+    if (std::abs(_l_el - (_ymax - _ymin) / _ny) > 1e-3)
+      mooseError("Please use quadratic elements for topology optimization.");
   }
 
   if (_filter_type == FilterType::HEAVISIDE)
@@ -59,9 +63,7 @@ FilterBase::FilterBase(const InputParameters & parameters)
     }
     else
     {
-      // NOTE: only for unit element size
-      Real l_e = 1;
-      _beta_0 = _radius / l_e;
+      _beta_0 = _radius / _l_el;
     }
     _beta = _beta_0;
   }

@@ -76,6 +76,8 @@ protected:
   Real _ymin;
   /// Upper Y Coordinate of the generated mesh
   Real _ymax;
+  /// Element size
+  Real _l_el;
 
   /// Data structures to hold the filter weights
   Eigen::SparseMatrix<Real> _H;
