@@ -42,6 +42,7 @@ DensityUpdateMMA::validParams()
 
 DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
   : ElementUserObject(parameters),
+    _n_el(_mesh.getMesh().n_elem()),
     _design_density(&writableVariable("design_density")),
     _old_design_density1(&writableVariable("old_design_density1")),
     _old_design_density2(&writableVariable("old_design_density2")),
@@ -90,15 +91,15 @@ DensityUpdateMMA::execute()
   mooseAssert(elem_data_iter != _elem_data_map.end(),
               "Element data not found for the current element id.");
 
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_design_density)
-        ->setNodalValue(elem_data.new_design_density);
-    dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
-        ->setNodalValue(elem_data.current_design_density);
-    dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)
-        ->setNodalValue(elem_data.old_design_density1);
-    dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->setNodalValue(elem_data.new_lower);
-    dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->setNodalValue(elem_data.new_upper);
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+      ->setNodalValue(elem_data.new_design_density);
+  dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)
+      ->setNodalValue(elem_data.current_design_density);
+  dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)
+      ->setNodalValue(elem_data.old_design_density1);
+  dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->setNodalValue(elem_data.new_lower);
+  dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->setNodalValue(elem_data.new_upper);
 }
 
 void
@@ -136,7 +137,6 @@ DensityUpdateMMA::gatherElementData()
           0);
       _elem_data_map[elem_id] = data;
     }
-  _n_el = _elem_data_map.size();
 }
 
 void

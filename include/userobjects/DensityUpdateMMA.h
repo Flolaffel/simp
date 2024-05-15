@@ -30,6 +30,8 @@ public:
   virtual void threadJoin(const UserObject &) override{};
 
 protected:
+  /// Number of elements
+  unsigned int _n_el;
   /// The pseudo-density variable
   MooseWritableVariable * _design_density;
   /// The old pseudo-density variable
@@ -103,9 +105,6 @@ private:
 
   /// Data structure to hold old element data
   std::map<dof_id_type, ElementData> _elem_data_map;
-
-  /// Number of elements
-  unsigned int _n_el;
 
   /// Move limit
   Real _move_limit;
