@@ -60,6 +60,7 @@ DensityFilter::execute()
 void
 DensityFilter::threadJoin(const UserObject & y)
 {
+  TIME_SECTION("threadJoin", 3, "Join VolumeResponse Threads");
   const DensityFilter & uo = static_cast<const DensityFilter &>(y);
   _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
 }
