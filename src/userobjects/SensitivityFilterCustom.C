@@ -192,28 +192,28 @@ void
 SensitivityFilterCustom::updateSensitivitiesHeaviside()
 {
   TIME_SECTION("updateSensitivitiesHeaviside", 3, "Updating Sensitivities");
-  std::vector<Real> dx(_n_el);
+  RealEigenVector dx(_n_el);
+  RealEigenMatrix sens(_n_el, _n_vars);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    dx[id] = (_beta * std::pow(1 / std::cosh(_beta * (elem_data.filtered_density - _eta)), 2)) /
+    dx(id) = (_beta * std::pow(1 / std::cosh(_beta * (elem_data.filtered_density - _eta)), 2)) /
              (std::tanh(_beta * _eta) + std::tanh(_beta * (1 - _eta)));
-  }
-
-  RealEigenMatrix temp_sens(_n_el, _n_vars);
-  for (auto && [id, elem_data] : _elem_data_map)
-  {
-    for (unsigned int var = 0; var < temp_sens.cols(); var++)
+    for (unsigned int var = 0; var < _n_vars; var++)
     {
-      temp_sens(id, var) = elem_data.sensitivities[var] * dx[id] / _Hs(id);
+      sens(id, var) = elem_data.sensitivities[var];
     }
   }
 
-  RealEigenMatrix filt_sens = _H * temp_sens;
+  RealEigenMatrix filt_sens(_n_el, _n_vars);
+  for (unsigned int var = 0; var < _n_vars; var++)
+  {
+    filt_sens.col(var) = _H * (sens.col(var).array() * dx.array() / _Hs.array()).matrix();
+  }
 
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    std::vector<Real> assign(filt_sens.row(id).data(),
-                             filt_sens.row(id).data() + filt_sens.row(id).size());
+    std::vector<Real> assign(_n_vars);
+    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(id);
     elem_data.filtered_sensitivities = assign;
   }
 }
