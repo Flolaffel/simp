@@ -38,6 +38,8 @@ protected:
   /// DOF map
   const DofMap & _dof_map;
   std::map<dof_id_type, std::vector<dof_id_type>> _elem_to_node_map;
+  /// Name of the mesh generator to get MeshMetaData from
+  MeshGeneratorName _mesh_generator;
   /// Stress variable names
   const std::vector<VariableName> _stress_names;
   /// Von Mises stress variable
@@ -70,8 +72,20 @@ protected:
   const Real _P;
   /// Elasticity matrix
   RealEigenMatrix _E;
-  /// Element number
-  unsigned int _n_el;
+  /// Number of elements in X direction
+  unsigned int _nx;
+  /// Number of elements in Y direction
+  unsigned int _ny;
+  /// Lower X Coordinate of the generated mesh
+  Real _xmin;
+  /// Upper X Coordinate of the generated mesh
+  Real _xmax;
+  /// Lower Y Coordinate of the generated mesh
+  Real _ymin;
+  /// Upper Y Coordinate of the generated mesh
+  Real _ymax;
+  /// Element size
+  Real _l_el;
   /// Number of DOFs
   dof_id_type _n_dofs;
   /// Vector of all DOFs
@@ -168,7 +182,7 @@ protected:
   /**
    * Copmutes lambda from system matrix and gamma_red
    */
-  RealEigenVector getLambda(std::vector<Real> gamma_red);
+  RealEigenVector getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs);
 
   /**
    * Copmutes T2 from lambda

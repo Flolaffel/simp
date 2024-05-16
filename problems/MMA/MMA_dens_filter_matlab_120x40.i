@@ -1,23 +1,15 @@
-nx = 150
-ny = 75
-xmax = 100
-ymax = 50
-l_el = ${fparse xmax/nx}
+nx = 120
+ny = 40
 p = 3
-filter_radius = 2.5
+vol_frac = 0.5
+filter_radius = 1.5
 E0 = 1
 Emin = 1e-9
-nu = 0.3
-start_dens = 1
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
   design_density = rho
   physical_density = rhoPhys
-  radius = ${filter_radius}
-  E0 = ${E0}
-  Emin = ${Emin}
-  p = ${p}
 []
 
 [Mesh]
@@ -27,21 +19,21 @@ start_dens = 1
     nx = ${nx}
     ny = ${ny}
     xmin = 0
-    xmax = ${xmax}
+    xmax = 60
     ymin = 0
-    ymax = ${ymax}
+    ymax = 20
   []
   [node]
     type = ExtraNodesetGenerator
     input = MeshGenerator
     new_boundary = pull
-    coord = '${fparse xmax} 0 0; ${fparse xmax-l_el} 0 0; ${fparse xmax-2*l_el} 0 0; ${fparse xmax-3*l_el} 0 0; ${fparse xmax-4*l_el} 0 0; ${fparse xmax-5*l_el} 0 0'
+    coord = '60 0 0'
   []
   [push]
     type = ExtraNodesetGenerator
     input = node
     new_boundary = push
-    coord = '0 50 0'
+    coord = '0 20 0'
   []
   [sidesets]
     type = SideSetsFromNodeSetsGenerator
@@ -76,42 +68,37 @@ start_dens = 1
   [dV]
     family = MONOMIAL
     order = CONSTANT
-  []
-  [PN]
-    family = SCALAR
-    order = FIRST
-  []
-  [dPN]
-    family = MONOMIAL
-    order = CONSTANT
+    initial_condition = 1
   []
   [rho]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = ${start_dens}
+    initial_condition = ${vol_frac}
   []
   [rhoPhys]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = ${start_dens}
+    initial_condition = ${vol_frac}
   []
   [rho_old1]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = ${start_dens}
+    initial_condition = ${vol_frac}
   []
   [rho_old2]
     family = MONOMIAL
     order = CONSTANT
-    initial_condition = ${start_dens}
+    initial_condition = ${vol_frac}
   []
   [low]
     family = MONOMIAL
     order = CONSTANT
+    initial_condition = 1
   []
   [upp]
     family = MONOMIAL
     order = CONSTANT
+    initial_condition = 1
   []
 []
 
@@ -129,7 +116,6 @@ start_dens = 1
     strain = SMALL
     add_variables = true
     incremental = false
-    generate_output = "stress_xx stress_yy stress_xy vonmises_stress"
   []
 []
 
@@ -137,23 +123,23 @@ start_dens = 1
   [no_x]
     type = DirichletBC
     variable = disp_y
-    boundary = left
+    boundary = pull
     value = 0.0
-    matrix_tags = system
   []
   [no_y]
     type = DirichletBC
     variable = disp_x
     boundary = left
     value = 0.0
-    matrix_tags = system
   []
+[]
+
+[NodalKernels]
   [pull]
-    type = NeumannBC
+    type = ConstantRate
     variable = disp_y
-    boundary = pull
-    value = -0.2
-    matrix_tags = system
+    boundary = push
+    rate = -1
   []
 []
 
@@ -174,7 +160,7 @@ start_dens = 1
   [poissons_ratio]
     type = GenericConstantMaterial
     prop_names = poissons_ratio
-    prop_values = ${nu}
+    prop_values = 0.3
   []
   [stress]
     type = ComputeLinearElasticStress
@@ -184,69 +170,9 @@ start_dens = 1
     physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
-  []
-  [elasticity_tensor_0]
-    type = ComputeIsotropicElasticityTensor
-    base_name = micro
-    youngs_modulus = ${E0}
-    poissons_ratio = ${nu}
-  []
-  [stress_micro]
-    type = ComputeLinearElasticStress
-    base_name = micro
-  []
-  [strain_micro]
-    type = ComputeSmallStrain
-    base_name = micro
-  []
-[]
-
-[AuxVariables]
-  [micro_stress_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [micro_stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [micro_stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [micro_vonmises_stress]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-[]
-
-[AuxKernels]
-  [micro_stress_xx]
-    type = RankTwoAux
-    rank_two_tensor = micro_stress
-    variable = micro_stress_xx
-    index_i = 0
-    index_j = 0
-  []
-  [micro_stress_yy]
-    type = RankTwoAux
-    rank_two_tensor = micro_stress
-    variable = micro_stress_yy
-    index_i = 1
-    index_j = 1
-  []
-  [micro_stress_xy]
-    type = RankTwoAux
-    rank_two_tensor = micro_stress
-    variable = micro_stress_xy
-    index_i = 0
-    index_j = 1
-  []
-  [micro_vonmises_stress]
-    type = RankTwoScalarAux
-    rank_two_tensor = micro_stress
-    variable = micro_vonmises_stress
-    scalar_type = VonMisesStress
+    E0 = ${E0}
+    Emin = ${Emin}
+    p = ${p}
   []
 []
 
@@ -260,42 +186,33 @@ start_dens = 1
 [UserObjects]
   [update]
     type = DensityUpdateMMA
-    objective_function_sensitivity = dV
-    constraint_values = 'PN'
-    constraint_sensitivities = 'dPN'
+    objective_function_sensitivity = dc
+    constraint_values = 'V'
+    constraint_sensitivities = dV
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    move_limit = 0.01
   []
-  # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
-  [filt_sens]
+  # needs MaterialRealAux to copy sensitivity (mat prop) to dc aux variable
+  [calc_sense]
     type = SensitivityFilterCustom
-    filter_type = density
-    sensitivities = 'dc dV dPN'
+    sensitivities = 'dc dV'
+    radius = ${filter_radius}
     mesh_generator = MeshGenerator
+    filter_type = density
   []
-  [filt_dens]
+  [filter]
     type = DensityFilter
     design_density = rho
     physical_density = rhoPhys
     radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
-  [stress_sens]
-    type = StressResponseEpsPNorm
-    usage = constraint
-    limit = 1
-    value = PN
-    sensitivity = dPN
-    stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
-    poissons_ratio = ${nu}
-    mesh_generator = MeshGenerator
-  []
   [vol_sens]
     type = VolumeResponse
-    usage = objective
+    usage = constraint
+    limit = ${vol_frac}
     value = V
     sensitivity = dV
   []
@@ -303,26 +220,28 @@ start_dens = 1
 
 [Executioner]
   type = Transient
-  solve_type = Newton
+  solve_type = NEWTON
   petsc_options_iname = '-pc_type -pc_factor_mat_solver_package'
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
-  dt = 1
-  num_steps = 324
+  dt = 1.0
+  num_steps = 70
 []
 
 [Outputs]
   exodus = true
-  # [pgraph]
-  #   type = PerfGraphOutput
-  #   execute_on = 'initial final'  # Default is "final"
-  #   level = 3                     # Default is 1
-  #   heaviest_branch = true        # Default is false
-  #   heaviest_sections = 7         # Default is 0
-  # []
+  csv = true
+[]
+
+[Postprocessors]
+  [total_vol]
+    type = ElementIntegralVariablePostprocessor
+    variable = rho
+    execute_on = 'INITIAL TIMESTEP_END'
+  []
 []
 
 [Debug]
-  # show_material_props = true
-  # show_execution_order = ALWAYS
+ # show_material_props = true
+ # show_execution_order = ALWAYS
 []

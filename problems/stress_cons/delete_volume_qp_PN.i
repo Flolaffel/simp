@@ -74,11 +74,11 @@ start_dens = 1
     family = MONOMIAL
     order = CONSTANT
   []
-  [PN]
+  [PM]
     family = SCALAR
     order = FIRST
   []
-  [dPN]
+  [dPM]
     family = MONOMIAL
     order = CONSTANT
   []
@@ -258,8 +258,8 @@ start_dens = 1
   [update]
     type = DensityUpdateMMA
     objective_function_sensitivity = dV
-    constraint_values = 'PN'
-    constraint_sensitivities = 'dPN'
+    constraint_values = 'PM'
+    constraint_sensitivities = 'dPM'
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
@@ -270,7 +270,7 @@ start_dens = 1
   [filt_sens]
     type = SensitivityFilterCustom
     filter_type = density
-    sensitivities = 'dc dV dPN'
+    sensitivities = 'dV dPM'
     mesh_generator = MeshGenerator
   []
   [filt_dens]
@@ -280,27 +280,21 @@ start_dens = 1
     radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
+  #using the macroscopic stresses leads to all void design
   [stress_sens]
-    type = StressResponseEpsPNorm
+    type = StressResponseQpPNormTest
     usage = constraint
     limit = 1
-    value = PN
-    sensitivity = dPN
-    stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
+    value = PM
+    sensitivity = dPM
+    stresses = 'vonmises_stress stress_xx stress_xy stress_yy'
     poissons_ratio = ${nu}
-    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
     usage = objective
     value = V
     sensitivity = dV
-  []
-  [opt_conv]
-    type = Terminator
-    expression = 'change < 0.0075 & change != 0'
-    execute_on = TIMESTEP_END
-    execution_order_group = 5
   []
 []
 
@@ -311,32 +305,13 @@ start_dens = 1
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1
-  num_steps = 2000
-[]
-
-[Postprocessors]
-  [change]
-    type = VectorPostprocessorComponent
-    vectorpostprocessor = max_abs_diff
-    vector_name = Difference
-    index = 0
-    execute_on = 'initial timestep_end'
-  []
-[]
-
-[VectorPostprocessors]
-  [max_abs_diff]
-    type = ElementVariablesDifferenceMax
-    compare_a = rho
-    compare_b = rho_old1
-    furthest_from_zero = true
-    contains_complete_history = true
-    execution_order_group = 4
-  []
+  num_steps = 300
+  #num_steps = 690
 []
 
 [Outputs]
   exodus = true
+  perf_graph = true
 []
 
 [Debug]

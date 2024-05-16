@@ -36,6 +36,7 @@ DensityFilter::DensityFilter(const InputParameters & parameters)
 void
 DensityFilter::initialize()
 {
+  TIME_SECTION("initialize", 2, "Preparing DensityFilter");
   gatherElementData();
   densityFilter();
 }
@@ -43,25 +44,23 @@ DensityFilter::initialize()
 void
 DensityFilter::execute()
 {
+  TIME_SECTION("execute", 3, "Writing Filtered Density");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-        ->setNodalValue(elem_data.filtered_density);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+      ->setNodalValue(elem_data.filtered_density);
 }
 
 void
 DensityFilter::threadJoin(const UserObject & y)
 {
+  TIME_SECTION("threadJoin", 3, "Join VolumeResponse Threads");
   const DensityFilter & uo = static_cast<const DensityFilter &>(y);
   _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
 }
@@ -69,6 +68,7 @@ DensityFilter::threadJoin(const UserObject & y)
 void
 DensityFilter::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -85,12 +85,17 @@ DensityFilter::gatherElementData()
 void
 DensityFilter::densityFilter()
 {
+  TIME_SECTION("densityFilter", 3, "Filtering Density");
+  RealEigenVector density(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    for (unsigned int j = 0; j < _n_el; j++)
-    {
-      elem_data.filtered_density += _H[id][j] * _elem_data_map[j].design_density;
-    }
-    elem_data.filtered_density /= _Hs[id];
+    density(id) = elem_data.design_density;
+  }
+
+  RealEigenVector filtered = (_H * density).array() / _Hs.array();
+
+  for (auto && [id, elem_data] : _elem_data_map)
+  {
+    elem_data.filtered_density = filtered(id);
   }
 }

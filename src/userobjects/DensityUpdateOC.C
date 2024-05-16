@@ -78,28 +78,24 @@ DensityUpdateOC::execute()
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_design_density)
+      ->setNodalValue(elem_data.new_design_density);
+  if (_filter_type == FilterType::NONE)
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
         ->setNodalValue(elem_data.new_design_density);
-    if (_filter_type == FilterType::NONE)
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_design_density);
-    if (_filter_type == FilterType::DENSITY)
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_filt_density);
-    if (_filter_type == FilterType::HEAVISIDE)
-    {
-      dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
-          ->setNodalValue(elem_data.new_filt_density);
-      dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-          ->setNodalValue(elem_data.new_proj_density);
-    }
-  }
-  else
+  if (_filter_type == FilterType::DENSITY)
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+        ->setNodalValue(elem_data.new_filt_density);
+  if (_filter_type == FilterType::HEAVISIDE)
   {
-    mooseError("Element data not found for the current element id.");
+    dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
+        ->setNodalValue(elem_data.new_filt_density);
+    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+        ->setNodalValue(elem_data.new_proj_density);
   }
 }
 
@@ -214,16 +210,9 @@ DensityUpdateOC::computeUpdatedDensity(Real current_density, Real dc, Real dv, R
 std::vector<Real>
 DensityUpdateOC::densityFilter(std::vector<Real> density)
 {
-  unsigned int n_el = density.size();
-  std::vector<Real> filt_density(n_el, 0);
-  for (unsigned int i = 0; i < n_el; i++)
-  {
-    for (unsigned int j = 0; j < n_el; j++)
-    {
-      filt_density[i] += _H[i][j] * density[j];
-    }
-    filt_density[i] /= _Hs[i];
-  }
+  RealEigenVector dens_temp = Eigen::Map<RealEigenVector>(density.data(), density.size());
+  RealEigenVector filt_temp = (_H * dens_temp).array() / _Hs.array();
+  std::vector<Real> filt_density(filt_temp.data(), filt_temp.data() + filt_temp.size());
   return filt_density;
 }
 

@@ -29,6 +29,7 @@ VolumeResponse::VolumeResponse(const InputParameters & parameters) : TODesignRes
 void
 VolumeResponse::initialize()
 {
+  TIME_SECTION("initialize", 2, "Initialize VolumeResponse");
   gatherElementData();
   computeValue();
   computeSensitivity();
@@ -37,25 +38,32 @@ VolumeResponse::initialize()
 void
 VolumeResponse::execute()
 {
+  TIME_SECTION("execute", 3, "Writing Volume Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)
-        ->setNodalValue(elem_data.new_volume_sensitivity);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)
+      ->setNodalValue(elem_data.new_volume_sensitivity);
+}
+
+void
+VolumeResponse::threadJoin(const UserObject & y)
+{
+  TIME_SECTION("threadJoin", 3, "Joining Threads");
+  const VolumeResponse & uo = static_cast<const VolumeResponse &>(y);
+  _scalar_value += uo._scalar_value;
+  _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
 }
 
 void
 VolumeResponse::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gather Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -68,13 +76,12 @@ VolumeResponse::gatherElementData()
           0);
       _elem_data_map[elem_id] = data;
     }
-
-  _n_el = _elem_data_map.size();
 }
 
 void
 VolumeResponse::computeValue()
 {
+  TIME_SECTION("computeValue", 3, "Computing Volume Value");
   Real value = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
@@ -99,6 +106,7 @@ VolumeResponse::computeValue()
 void
 VolumeResponse::computeSensitivity()
 {
+  TIME_SECTION("computeSensitivity", 3, "Computing Volume Sensitivity");
   for (auto && [id, elem_data] : _elem_data_map)
   {
     if (_is_objective)

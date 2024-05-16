@@ -56,6 +56,8 @@ public:
   virtual void computeSensitivity() = 0;
 
 protected:
+  /// Number of elements
+  unsigned int _n_el;
   /// The usage
   const Usage _usage;
   /// Flag for objective function

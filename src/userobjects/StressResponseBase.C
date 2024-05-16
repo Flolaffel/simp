@@ -21,6 +21,7 @@
 #include "libmesh/numeric_vector.h"
 #include "libmesh/petsc_vector.h"
 #include "libmesh/mesh_tools.h"
+#include "libmesh/dof_map.h"
 
 #include <algorithm>
 
@@ -40,6 +41,9 @@ StressResponseBase::validParams()
   params.addParam<Real>("P", 12, "Aggregation function parameter");
   params.addParam<std::string>(
       "system_matrix", "system", "The matrix tag name corresponding to the system matrix.");
+  params.addParam<MeshGeneratorName>(
+      "mesh_generator",
+      "Name of the mesh generator to be used to retrieve control drums information.");
   return params;
 }
 
@@ -54,6 +58,18 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
     _p(getParam<Real>("p")),
     _P(getParam<Real>("P"))
 {
+  _mesh_generator = getParam<MeshGeneratorName>("mesh_generator");
+  _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
+  _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
+  _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
+  _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
+  _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
+  _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+
+  _l_el = (_xmax - _xmin) / _nx;
+  if (_l_el - (_ymax - _ymin) / _ny > 1e-3)
+    mooseError("Please use quadratic elements for topology optimization.");
+
   if (isParamValid("stresses"))
     for (unsigned int i = 0; i < _stress_names.size(); i++)
     {
@@ -82,6 +98,7 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
 void
 StressResponseBase::initialSetup()
 {
+  TIME_SECTION("initialSetup", 2, "Initial StressBase Setup");
   initializeDofVariables();
   initializeEMat();
   initializeKeMat();
@@ -90,6 +107,7 @@ StressResponseBase::initialSetup()
 void
 StressResponseBase::initialize()
 {
+  TIME_SECTION("initialize", 2, "Initialize StressBase");
   gatherNodalData();
   gatherElementData();
   initializeUVec();
@@ -101,25 +119,22 @@ StressResponseBase::initialize()
 void
 StressResponseBase::execute()
 {
+  TIME_SECTION("execute", 3, "Writing Stress Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)
-        ->setNodalValue(elem_data.stress_sensitivity);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)->setNodalValue(elem_data.stress_sensitivity);
 }
 
 void
 StressResponseBase::gatherNodalData()
 {
+  TIME_SECTION("gatherNodalData", 3, "Gathering Nodal Data");
   _nodal_data_map.clear();
 
   for (const auto & node : _mesh.getMesh().active_node_ptr_range())
@@ -127,8 +142,7 @@ StressResponseBase::gatherNodalData()
     dof_id_type node_id = node->id();
 
     std::vector<dof_id_type> dofs;
-    dofs.push_back(node->dof_number(_sys.number(), 0, 0));
-    dofs.push_back(node->dof_number(_sys.number(), 1, 0));
+    _dof_map.dof_indices(node, dofs);
 
     NodalData data = NodalData(_disp_x->getNodalValue(*node), _disp_y->getNodalValue(*node), dofs);
     _nodal_data_map[node_id] = data;
@@ -138,6 +152,7 @@ StressResponseBase::gatherNodalData()
 void
 StressResponseBase::gatherElementData()
 {
+  TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
   _elem_data_map.clear();
 
   for (const auto & sub_id : blockIDs())
@@ -178,6 +193,7 @@ StressResponseBase::gatherElementData()
 void
 StressResponseBase::initializeDofVariables()
 {
+  TIME_SECTION("initializeDofVariables", 6, "Initializing DOF Variables");
   // all DOFs
   _n_dofs = _sys.system().n_dofs();
   _all_dofs.resize(_n_dofs);
@@ -213,7 +229,6 @@ StressResponseBase::initializeDofVariables()
                       std::inserter(_free_dofs, std::begin(_free_dofs)));
 
   // Elemen to DOF map
-  _n_el = _mesh.nElem();
   _elem_to_dof_map.resize(_n_el);
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
@@ -232,9 +247,7 @@ StressResponseBase::initializeDofVariables()
 RealEigenMatrix
 StressResponseBase::getBMat(Real xi, Real eta)
 {
-  // only true for unit element size
-  int l = 1;
-  Real B_prefactor = 1.0 / (2 * l);
+  Real B_prefactor = 1.0 / (2 * _l_el);
   RealEigenMatrix B{{eta - 1, 0, xi - 1},
                     {0, xi - 1, eta - 1},
                     {1 - eta, 0, -1 - xi},
@@ -249,6 +262,7 @@ StressResponseBase::getBMat(Real xi, Real eta)
 void
 StressResponseBase::initializeEMat()
 {
+  TIME_SECTION("initializeEMat", 6, "Initializing Elasticity Matrix");
   // Elasticity tensor E
   Real E_prefactor = _E0 / (1 - std::pow(_nu, 2));
   RealEigenMatrix E{{1, _nu, 0}, {_nu, 1, 0}, {0, 0, (1 - _nu) / 2}};
@@ -258,6 +272,7 @@ StressResponseBase::initializeEMat()
 void
 StressResponseBase::initializeKeMat()
 {
+  TIME_SECTION("initializeKeMat", 6, "Initializing Element Stiffness Matrix");
   /// Element stiffness matrix
   _KE.resize(8, 8);
 
@@ -272,7 +287,7 @@ StressResponseBase::initializeKeMat()
 
   // Jacobi-matrix for unit thickness
   int t = 1;
-  std::vector<std::vector<Real>> J{{0.5, 0}, {0, 0.5}};
+  std::vector<std::vector<Real>> J{{_l_el / 2, 0}, {0, _l_el / 2}};
   Real det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
 
   for (int qp = 0; qp < 4; qp++)
@@ -289,7 +304,8 @@ StressResponseBase::initializeKeMat()
 void
 StressResponseBase::initializeUVec()
 {
-  /// Global displacement vector
+  TIME_SECTION("initializeUVec", 6, "Initializing Global Displacement Vector");
+  // Global displacement vector
   _U.resize(_n_dofs);
   for (auto && [id, node] : _nodal_data_map)
   {
@@ -299,20 +315,26 @@ StressResponseBase::initializeUVec()
 }
 
 RealEigenVector
-StressResponseBase::getLambda(std::vector<Real> gamma_red)
+StressResponseBase::getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs)
 {
-  /// vector lambda
+  TIME_SECTION("getLambda", 4, "Computing Lambda");
+  // vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
   SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
-  PetscVector<Number> gamma_red_petsc(_communicator), lambda_petsc(_communicator);
-  gamma_red_petsc.init(_n_dofs);
-  gamma_red_petsc = gamma_red;
-  lambda_petsc.init(_n_dofs);
+  PetscVector<Number> gamma_red(_communicator, _n_dofs), lambda_petsc(_communicator, _n_dofs);
+  gamma_red = gamma;
 
-  solver.solve(K, K, lambda_petsc, gamma_red_petsc, 1e-8, 100);
+  std::vector<PetscScalar> zeros(fixed_dofs.size());
+  VecSetValues(gamma_red.vec(),
+               cast_int<PetscInt>(fixed_dofs.size()),
+               numeric_petsc_cast(fixed_dofs.data()),
+               zeros.data(),
+               INSERT_VALUES);
+
+  solver.solve(K, K, lambda_petsc, gamma_red, 1e-8, 100);
 
   RealEigenVector lambda(_n_dofs);
-  for (int i = 0; i < _n_dofs; i++)
+  for (unsigned int i = 0; i < _n_dofs; i++)
     lambda(i) = lambda_petsc(i);
 
   return lambda;
@@ -321,7 +343,8 @@ StressResponseBase::getLambda(std::vector<Real> gamma_red)
 RealEigenVector
 StressResponseBase::getT2(RealEigenVector lambda)
 {
-  /// final sensitivity
+  TIME_SECTION("getT2", 4, "Computing T2");
+  // final sensitivity
   RealEigenVector T2(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {

@@ -52,18 +52,14 @@ HeavisideProjection::execute()
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  if (elem_data_iter != _elem_data_map.end())
-  {
-    ElementData & elem_data = elem_data_iter->second;
-    dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
-        ->setNodalValue(elem_data.filtered_density);
-    dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-        ->setNodalValue(elem_data.projected_density);
-  }
-  else
-  {
-    mooseError("Element data not found for the current element id.");
-  }
+  mooseAssert(elem_data_iter != _elem_data_map.end(),
+              "Element data not found for the current element id.");
+
+  ElementData & elem_data = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)
+      ->setNodalValue(elem_data.filtered_density);
+  dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
+      ->setNodalValue(elem_data.projected_density);
 }
 
 void
@@ -92,13 +88,17 @@ HeavisideProjection::gatherElementData()
 void
 HeavisideProjection::densityFilter()
 {
+  RealEigenVector density(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    for (unsigned int j = 0; j < _n_el; j++)
-    {
-      elem_data.filtered_density += _H[id][j] * _elem_data_map[j].design_density;
-    }
-    elem_data.filtered_density /= _Hs[id];
+    density(id) = elem_data.design_density;
+  }
+
+  RealEigenVector filtered = (_H * density).array() / _Hs.array();
+
+  for (auto && [id, elem_data] : _elem_data_map)
+  {
+    elem_data.filtered_density = filtered(id);
   }
 }
 

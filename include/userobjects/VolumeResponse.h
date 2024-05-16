@@ -24,8 +24,8 @@ public:
 
   virtual void initialize() override;
   virtual void execute() override;
-  virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void finalize() override {};
+  virtual void threadJoin(const UserObject &) override;
 
   virtual void gatherElementData() override;
 
@@ -50,7 +50,6 @@ private:
 
   /// Data structure to hold elemental values
   std::map<dof_id_type, ElementData> _elem_data_map;
-
-  /// Element number
-  unsigned int _n_el;
+  /// Numeric value
+  Real _scalar_value;
 };

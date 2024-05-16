@@ -11,6 +11,8 @@
 #include "MooseError.h"
 #include <algorithm>
 
+#include "sum.h"
+
 registerMooseObject("OptimizationApp", FilterBase);
 
 InputParameters
@@ -45,6 +47,10 @@ FilterBase::FilterBase(const InputParameters & parameters)
     _xmax = getMeshProperty<Real>("xmax", _mesh_generator);
     _ymin = getMeshProperty<Real>("ymin", _mesh_generator);
     _ymax = getMeshProperty<Real>("ymax", _mesh_generator);
+
+    _l_el = (_xmax - _xmin) / _nx;
+    if (std::abs(_l_el - (_ymax - _ymin) / _ny) > 1e-3)
+      mooseError("Please use quadratic elements for topology optimization.");
   }
 
   if (_filter_type == FilterType::HEAVISIDE)
@@ -57,9 +63,7 @@ FilterBase::FilterBase(const InputParameters & parameters)
     }
     else
     {
-      // NOTE: only for unit element size
-      Real l_e = 1;
-      _beta_0 = _radius / l_e;
+      _beta_0 = _radius / _l_el;
     }
     _beta = _beta_0;
   }
@@ -68,6 +72,7 @@ FilterBase::FilterBase(const InputParameters & parameters)
 void
 FilterBase::initialSetup()
 {
+  TIME_SECTION("initialSetup", 2, "Performing FilterBase Setup");
   if (_filter_type != FilterType::NONE)
     prepareFilter();
 }
@@ -75,8 +80,11 @@ FilterBase::initialSetup()
 void
 FilterBase::finalize()
 {
+  TIME_SECTION("finalize", 3, "Finalizing FilterBase");
   if (_filter_type == FilterType::HEAVISIDE)
   {
+    if (_t_step == 1)
+      _console << "Beta start value is " << _beta_0 << "\n" << std::flush;
     if (_t_step > 0 && _t_step % 10 == 0 && _beta < _beta_max)
     {
       _beta = std::min(1.25 * _beta, _beta_max);
@@ -88,9 +96,10 @@ FilterBase::finalize()
 void
 FilterBase::prepareFilter()
 {
+  TIME_SECTION("prepareFilter", 3, "Preparing Filter");
   // NOTE: Only eligibale for elemente size of 1 mm
   int upp_r = ceil(_radius);
-  int size = _nx * _ny * std::pow((2 * (upp_r - 1) + 1), 2);
+  int size = _n_el * std::pow((2 * (upp_r - 1) + 1), 2);
   std::vector<int> iH(size, 1);
   std::vector<int> jH(size, 1);
   std::vector<Real> sH(size, 0);
@@ -117,23 +126,18 @@ FilterBase::prepareFilter()
   }
 
   // Fill _H and with values sH at locations iH,jH
-  _H.resize(_nx * _ny, std::vector<Real>(_nx * _ny, 0));
-  _Hs.resize(_nx * _ny);
+  _H.resize(_n_el, _n_el);
+  _Hs.resize(_n_el);
+
+  std::vector<Eigen::Triplet<Real>> triplets(counter);
   for (int i = 0; i < counter; i++)
   {
-    _H[iH[i]][jH[i]] = sH[i];
+    triplets[i] = Eigen::Triplet<Real>(iH[i], jH[i], sH[i]);
   }
+  _H.setFromTriplets(triplets.begin(), triplets.end());
 
   // Fill _Hs with the column sums of _H
-  for (unsigned int i = 0; i < _H.size(); i++)
-  {
-    Real column_sum = 0;
-    for (unsigned int j = 0; j < _H[i].size(); j++)
-    {
-      column_sum += _H[i][j];
-    }
-    _Hs[i] = column_sum;
-  }
+  igl::sum(_H, 2, _Hs);
 }
 
 MooseEnum
