@@ -14,6 +14,18 @@
 
 #include "PointListAdaptor.h"
 
+#include "ElementUserObject.h"
+#include "DataIO.h"
+#include "PointListAdaptor.h"
+#include "Function.h"
+
+#include "libmesh/data_type.h"
+
+#include <set>
+#include <map>
+#include <vector>
+#include <memory>
+
 /**
  * Element user object that filters the objective function (and constraint) sensitivities, depending
  * on filter type.
@@ -26,21 +38,23 @@ public:
 
   GatherElementData(const InputParameters & parameters);
 
+  virtual void initialSetup() override;
+
   virtual void initialize() override;
-  virtual void execute() override{};
+  virtual void execute() override;
   virtual void threadJoin(const UserObject & y) override;
   virtual void finalize() override;
   virtual void meshChanged() override;
 
   struct ElementData
   {
-    Point center;
+    Point centroid;
     Real sensitivities;
     Real design_density;
     Real filtered_density;
     Real filtered_sensitivities;
     ElementData()
-      : center(0),
+      : centroid(0),
         sensitivities(0),
         design_density(0),
         filtered_density(0),
@@ -48,7 +62,7 @@ public:
     {
     }
     ElementData(Point p, Real sens, Real dens, Real filt_dens, Real filt_sens)
-      : center(p),
+      : centroid(p),
         sensitivities(sens),
         design_density(dens),
         filtered_density(filt_dens),
@@ -58,6 +72,7 @@ public:
   };
 
   const std::map<dof_id_type, ElementData> & getMap() const { return _elem_data_map; }
+  const std::vector<ElementData> & getVector() const { return _elem_data_vector; }
 
 protected:
   /// Number of variables
@@ -77,6 +92,7 @@ private:
   /// Data structure to hold element data
   std::map<dof_id_type, ElementData> _elem_data_map;
   std::vector<ElementData> _elem_data_vector;
+  std::vector<ElementData> _elem_data_vector_test;
 
   /**
    * Gathers element data
