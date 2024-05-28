@@ -30,7 +30,7 @@ SensitivityFilterTop88::validParams()
 
 SensitivityFilterTop88::SensitivityFilterTop88(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _filter(getUserObject<RadialAverage>("filter_UO").getAverage()),
+    _filter(getUserObject<RadialAverageTop88>("filter_UO").getAverage()),
     _compliance_sensitivity(writableVariable("compliance_sensitivity")),
     _design_density_name(getParam<VariableName>("design_density")),
     _design_density(_subproblem.getStandardVariable(_tid, _design_density_name))
