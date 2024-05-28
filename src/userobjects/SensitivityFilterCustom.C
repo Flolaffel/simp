@@ -19,7 +19,6 @@ SensitivityFilterCustom::validParams()
   InputParameters params = FilterBase::validParams();
   params.addClassDescription("Computes the filtered sensitivities for "
                              "sensitivity filtering, density filtering or Heaviside projection.");
-  params.addRequiredParam<UserObjectName>("map_UO", "Radial Average user object");
   params.addRequiredCoupledVar("sensitivities", "Name of the sensitivity variables.");
   params.addParam<VariableName>("design_density", "Design density variable name.");
   params.addParam<VariableName>("filtered_density", "Filtered density variable name.");
@@ -29,9 +28,7 @@ SensitivityFilterCustom::validParams()
 }
 
 SensitivityFilterCustom::SensitivityFilterCustom(const InputParameters & parameters)
-  : FilterBase(parameters),
-    _n_vars(coupledComponents("sensitivities")),
-    _map(getUserObject<GatherElementData>("map_UO").getMap())
+  : FilterBase(parameters), _n_vars(coupledComponents("sensitivities"))
 {
   for (unsigned int i = 0; i < _n_vars; i++)
     _sensitivities.push_back(&writableVariable("sensitivities", i));
@@ -58,7 +55,26 @@ SensitivityFilterCustom::initialize()
   if (_filter_type != FilterType::NONE)
   {
     gatherElementData();
-    threadJoin(*this);
+
+    if (_app.n_processors() > 1)
+    {
+      for (unsigned int var = 0; var < _n_vars; var++)
+      {
+        _communicator.allgather(_sensitivities_vec[var], false);
+        std::sort(_sensitivities_vec[var].begin(), _sensitivities_vec[var].end());
+      }
+      if (_filter_type == FilterType::SENSITIVITY)
+      {
+        _communicator.allgather(_design_density_vec, false);
+        std::sort(_design_density_vec.begin(), _design_density_vec.end());
+      }
+      if (_filter_type == FilterType::HEAVISIDE)
+      {
+        _communicator.allgather(_filtered_density_vec, false);
+        std::sort(_filtered_density_vec.begin(), _filtered_density_vec.end());
+      }
+    }
+
     if (_filter_type == FilterType::SENSITIVITY)
       updateSensitivitiesSensitivityFilter();
     else if (_filter_type == FilterType::DENSITY)
@@ -71,22 +87,20 @@ SensitivityFilterCustom::initialize()
 void
 SensitivityFilterCustom::execute()
 {
-  TIME_SECTION("execute", 3, "Execute SensitvityFilterCustom");
   if (_filter_type != FilterType::NONE)
   {
     // Grab the element data for each id
-    auto elem_data_iter = _elem_data_map.find(_current_elem->id());
+    auto elem_data_iter = _filtered_sensitivities_map.find(_current_elem->id());
 
     // Check if the element data is not null
-    mooseAssert(elem_data_iter != _elem_data_map.end(),
+    mooseAssert(elem_data_iter != _filtered_sensitivities_map.end(),
                 "Element data not found for the current element id.");
 
-    ElementData & elem_data = elem_data_iter->second;
+    auto & filtered_sens = elem_data_iter->second;
     int i = 0;
     for (auto & sensitivity : _sensitivities)
     {
-      dynamic_cast<MooseVariableFE<Real> *>(sensitivity)
-          ->setNodalValue(elem_data.filtered_sensitivities[i]);
+      dynamic_cast<MooseVariableFE<Real> *>(sensitivity)->setNodalValue(filtered_sens[i]);
       i++;
     }
   }
@@ -97,14 +111,18 @@ SensitivityFilterCustom::threadJoin(const UserObject & y)
 {
   TIME_SECTION("threadJoin", 3, "Joining Threads");
   const SensitivityFilterCustom & uo = static_cast<const SensitivityFilterCustom &>(y);
-  _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
+  _filtered_sensitivities_map.insert(uo._filtered_sensitivities_map.begin(),
+                                     uo._filtered_sensitivities_map.end());
 }
 
 void
 SensitivityFilterCustom::gatherElementData()
 {
   TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
-  _elem_data_map.clear();
+  _filtered_sensitivities_map.clear();
+  _sensitivities_vec.clear();
+  _design_density_vec.clear();
+  _filtered_density_vec.clear();
 
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
@@ -112,7 +130,6 @@ SensitivityFilterCustom::gatherElementData()
       dof_id_type elem_id = elem->id();
 
       std::vector<Real> sens_values(_n_vars);
-      std::vector<Real> filt_values(_n_vars);
       int i = 0;
       for (auto & sensitivity : _sensitivities)
       {
@@ -120,34 +137,25 @@ SensitivityFilterCustom::gatherElementData()
             dynamic_cast<MooseVariableFE<Real> *>(sensitivity)->getElementalValue(elem);
         i++;
       }
+      _sensitivities_vec.resize(_n_vars);
+      for (unsigned int var = 0; var < _n_vars; var++)
+      {
+        _sensitivities_vec[var].emplace_back(elem_id, sens_values[var]);
+      }
 
       if (_filter_type == FilterType::SENSITIVITY)
       {
-        ElementData data = ElementData(
-            sens_values,
-            dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-            0,
-            filt_values);
-        _elem_data_map[elem_id] = data;
+        _design_density_vec.emplace_back(
+            elem_id,
+            dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem));
       }
-      else if (_filter_type == FilterType::DENSITY)
+      if (_filter_type == FilterType::HEAVISIDE)
       {
-        ElementData data = ElementData(sens_values, 1, 0, filt_values);
-        _elem_data_map[elem_id] = data;
-      }
-      else if (_filter_type == FilterType::HEAVISIDE)
-      {
-        ElementData data = ElementData(
-            sens_values,
-            0,
-            dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)->getElementalValue(elem),
-            filt_values);
-        _elem_data_map[elem_id] = data;
+        _filtered_density_vec.emplace_back(
+            elem_id,
+            dynamic_cast<MooseVariableFE<Real> *>(_filtered_density)->getElementalValue(elem));
       }
     }
-
-  std::cout << _elem_data_map.size() << "\n\n";
-  std::cout << _map.size() << "\n\n";
 }
 
 void
@@ -155,10 +163,10 @@ SensitivityFilterCustom::updateSensitivitiesSensitivityFilter()
 {
   TIME_SECTION("updateSensitivitiesSensitivityFilter", 3, "Filtering Objective Sensitivity");
   RealEigenVector sens(_n_el), dens(_n_el);
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    sens(id) = elem_data.sensitivities[0];
-    dens(id) = elem_data.design_density;
+    sens(i) = _sensitivities_vec[0][i].second;
+    dens(i) = _design_density_vec[i].second;
   }
 
   RealEigenVector min = 0.001 * RealEigenVector::Ones(_n_el);
@@ -166,9 +174,9 @@ SensitivityFilterCustom::updateSensitivitiesSensitivityFilter()
   RealEigenVector filt_sens =
       (_H * (dens.array() * sens.array()).matrix()).array() / _Hs.array() / temp.array();
 
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    elem_data.filtered_sensitivities[0] = filt_sens(id);
+    _filtered_sensitivities_map[i] = {filt_sens(i)};
   }
 }
 
@@ -177,21 +185,21 @@ SensitivityFilterCustom::updateSensitivitiesDensityFilter()
 {
   TIME_SECTION("updateSensitivitiesDensityFilter", 3, "Updating Sensitivities");
   RealEigenMatrix temp_sens(_n_el, _n_vars);
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
     for (unsigned int var = 0; var < temp_sens.cols(); var++)
     {
-      temp_sens(id, var) = elem_data.sensitivities[var] / _Hs(id);
+      temp_sens(i, var) = _sensitivities_vec[var][i].second / _Hs(i);
     }
   }
 
   RealEigenMatrix filt_sens = _H * temp_sens;
 
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
     std::vector<Real> assign(_n_vars);
-    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(id);
-    elem_data.filtered_sensitivities = assign;
+    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(i);
+    _filtered_sensitivities_map[i] = assign;
   }
 }
 
@@ -201,13 +209,13 @@ SensitivityFilterCustom::updateSensitivitiesHeaviside()
   TIME_SECTION("updateSensitivitiesHeaviside", 3, "Updating Sensitivities");
   RealEigenVector dx(_n_el);
   RealEigenMatrix sens(_n_el, _n_vars);
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    dx(id) = (_beta * std::pow(1 / std::cosh(_beta * (elem_data.filtered_density - _eta)), 2)) /
-             (std::tanh(_beta * _eta) + std::tanh(_beta * (1 - _eta)));
+    dx(i) = (_beta * std::pow(1 / std::cosh(_beta * (_filtered_density_vec[i].second - _eta)), 2)) /
+            (std::tanh(_beta * _eta) + std::tanh(_beta * (1 - _eta)));
     for (unsigned int var = 0; var < _n_vars; var++)
     {
-      sens(id, var) = elem_data.sensitivities[var];
+      sens(i, var) = _sensitivities_vec[var][i].second;
     }
   }
 
@@ -217,10 +225,10 @@ SensitivityFilterCustom::updateSensitivitiesHeaviside()
     filt_sens.col(var) = _H * (sens.col(var).array() * dx.array() / _Hs.array()).matrix();
   }
 
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
     std::vector<Real> assign(_n_vars);
-    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(id);
-    elem_data.filtered_sensitivities = assign;
+    RealEigenVector::Map(&assign[0], _n_vars) = filt_sens.row(i);
+    _filtered_sensitivities_map[i] = assign;
   }
 }
