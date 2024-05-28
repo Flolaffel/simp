@@ -108,18 +108,24 @@ void
 StressResponseBase::initialize()
 {
   TIME_SECTION("initialize", 2, "Initialize StressBase");
+  std::cout << "1" << std::endl;
   gatherNodalData();
+  std::cout << "test2" << std::endl;
   gatherElementData();
+  std::cout << "test3" << std::endl;
   initializeUVec();
+  std::cout << "test4" << std::endl;
   computeStress();
+  std::cout << "test5" << std::endl;
   computeValue();
+  std::cout << "test6" << std::endl;
   computeSensitivity();
+  std::cout << "test7" << std::endl;
 }
 
 void
 StressResponseBase::execute()
 {
-  TIME_SECTION("execute", 3, "Writing Stress Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -137,7 +143,7 @@ StressResponseBase::gatherNodalData()
   TIME_SECTION("gatherNodalData", 3, "Gathering Nodal Data");
   _nodal_data_map.clear();
 
-  for (const auto & node : _mesh.getMesh().active_node_ptr_range())
+  for (const auto & node : _mesh.getMesh().local_node_ptr_range())
   {
     dof_id_type node_id = node->id();
 
@@ -217,7 +223,8 @@ StressResponseBase::initializeDofVariables()
             _fixed_dofs.push_back(node->dof_number(sys.number(), bc->variable().number() + c, 0));
     }
   }
-  std::sort(std::begin(_fixed_dofs), std::end(_fixed_dofs));
+  // _communicator.allgather(_fixed_dofs, false);
+  // std::sort(std::begin(_fixed_dofs), std::end(_fixed_dofs));
 
   // free DOFs
   std::set_difference(std::begin(_all_dofs),
@@ -234,12 +241,32 @@ StressResponseBase::initializeDofVariables()
       std::vector<dof_id_type> dofs;
       for (auto & node : elem->node_ref_range())
       {
+        // NOTE: 2D only
         dofs.push_back(node.dof_number(_sys.number(), 0, 0));
         dofs.push_back(node.dof_number(_sys.number(), 1, 0));
       }
       dof_id_type elem_id = elem->id();
       _elem_to_dof_map[elem_id] = dofs;
+      _elem_to_dof_map_test.emplace_back(elem_id, dofs);
     }
+  // std::cout << "size: " << _elem_to_dof_map_test.size() << std::endl;
+  // for (auto & out : _elem_to_dof_map)
+  // {
+  //   std::cout << out[0] << ", " << out[1] << std::endl;
+  // }
+  // std::cout << std::endl;
+  // for (auto & out : _elem_to_dof_map_test)
+  // {
+  //   std::cout << out.second[0] << ", " << out.second[1] << std::endl;
+  // }
+  // std::cout << std::endl;
+  // _communicator.allgather(_elem_to_dof_map_test, false);
+  // std::sort(_elem_to_dof_map_test.begin(), _elem_to_dof_map_test.end());
+  // std::cout << "size: " << _elem_to_dof_map_test.size() << std::endl;
+  // for (auto & out : _elem_to_dof_map_test)
+  // {
+  //   std::cout << out.first << ": " << out.second[0] << ", " << out.second[1] << std::endl;
+  // }
 }
 
 RealEigenMatrix
@@ -304,6 +331,7 @@ StressResponseBase::initializeUVec()
 {
   TIME_SECTION("initializeUVec", 6, "Initializing Global Displacement Vector");
   // Global displacement vector
+  // NOTE: 2D ONLY
   _U.resize(_n_dofs);
   for (auto && [id, node] : _nodal_data_map)
   {
@@ -319,8 +347,10 @@ StressResponseBase::getLambda(std::vector<Real> gamma, std::vector<dof_id_type> 
   // vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
   SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
+  std::cout << "subtest" << std::endl;
   PetscVector<Number> gamma_red(_communicator, _n_dofs), lambda_petsc(_communicator, _n_dofs);
   gamma_red = gamma;
+  std::cout << gamma_red << std::endl;
 
   std::vector<PetscScalar> zeros(fixed_dofs.size());
   VecSetValues(gamma_red.vec(),
@@ -346,14 +376,9 @@ StressResponseBase::getT2(RealEigenVector lambda)
   RealEigenVector T2(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    RealEigenVector lambda_el(8);
-    int x = 0;
-    for (auto & dof : _elem_to_dof_map[id])
-    {
-      lambda_el(x) = lambda(dof);
-      x++;
-    }
-    Real value = lambda_el.transpose() * _KE * _elem_data_map[id].u_el;
+    RealEigenVector lambda_el = lambda(_elem_to_dof_map_test[id].second);
+    RealEigenVector u_el = _U(_elem_to_dof_map_test[id].second);
+    Real value = lambda_el.transpose() * _KE * u_el;
     T2(id) = -_p * std::pow(elem_data.physical_density, _p - 1) * (_E0 - _Emin) * value;
   }
   return T2;

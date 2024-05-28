@@ -311,7 +311,8 @@ start_dens = 1
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1
-  num_steps = 2000
+  #num_steps = 2000
+  num_steps = 100
 []
 
 [Postprocessors]

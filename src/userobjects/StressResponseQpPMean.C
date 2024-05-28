@@ -35,8 +35,9 @@ StressResponseQpPMean::computeStress()
   _vonmises.resize(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
+    RealEigenVector u_el = _U(_elem_to_dof_map[id]);
     RealEigenVector vector =
-        std::pow(elem_data.physical_density, _q) * _E * getBMat(0, 0).transpose() * elem_data.u_el;
+        std::pow(elem_data.physical_density, _q) * _E * getBMat(0, 0).transpose() * u_el;
     _stress.row(id) << vector.transpose();
     _vonmises(id) = std::sqrt(std::pow(vector(0), 2) + std::pow(vector(1), 2) -
                               vector(0) * vector(1) + 3 * std::pow(vector(2), 2));
@@ -93,7 +94,8 @@ StressResponseQpPMean::computeSensitivity()
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenMatrix B = getBMat(0, 0);
-    Real value = dVMdS[id].transpose() * _E * B.transpose() * _elem_data_map[id].u_el;
+    RealEigenVector u_el = _U(_elem_to_dof_map[id]);
+    Real value = dVMdS[id].transpose() * _E * B.transpose() * u_el;
     beta(id) = _q * std::pow(elem_data.physical_density, _q - 1) * value;
   }
 

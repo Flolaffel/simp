@@ -93,8 +93,11 @@ protected:
   std::vector<dof_id_type> _fixed_dofs;
   /// Vector of free DOFs
   std::vector<dof_id_type> _free_dofs;
-  /// Map of DOFs per elements
+  /// Map of DOFs per element
   std::vector<std::vector<dof_id_type>> _elem_to_dof_map;
+  std::vector<std::pair<dof_id_type, std::vector<dof_id_type>>> _elem_to_dof_map_test;
+  /// Map of DOFs per node
+  std::vector<std::vector<dof_id_type>> _node_to_dof_map;
   /// Element stiffness matrix
   RealEigenMatrix _KE;
   /// Global displacement vector

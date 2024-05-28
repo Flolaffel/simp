@@ -34,7 +34,8 @@ StressResponseVerbartPMean::computeStress()
   _vonmises.resize(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    RealEigenVector vector = _E * getBMat(0, 0).transpose() * elem_data.u_el;
+    RealEigenVector u_el = _U(_elem_to_dof_map[id]);
+    RealEigenVector vector = _E * getBMat(0, 0).transpose() * u_el;
     _stress.row(id) << vector.transpose();
     _vonmises(id) = std::sqrt(std::pow(vector(0), 2) + std::pow(vector(1), 2) -
                               vector(0) * vector(1) + 3 * std::pow(vector(2), 2));
