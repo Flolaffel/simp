@@ -163,7 +163,6 @@ StressResponseBase::gatherElementData()
       std::vector<dof_id_type> nodes;
       for (unsigned int n = 0; n < elem->n_nodes(); n++)
       {
-        _elem_to_node_map[elem->id()].push_back(elem->node_id(n));
         nodes.push_back(elem->node_id(n));
       }
 
@@ -184,7 +183,6 @@ StressResponseBase::gatherElementData()
           dynamic_cast<MooseVariableFE<Real> *>(_stress_xy)->getElementalValue(elem),
           dynamic_cast<const MooseVariableFE<Real> *>(_physical_density)->getElementalValue(elem),
           0,
-          nodes,
           u_el);
       _elem_data_map[elem_id] = data;
     }

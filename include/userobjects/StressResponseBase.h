@@ -37,7 +37,6 @@ public:
 protected:
   /// DOF map
   const DofMap & _dof_map;
-  std::map<dof_id_type, std::vector<dof_id_type>> _elem_to_node_map;
   /// Name of the mesh generator to get MeshMetaData from
   MeshGeneratorName _mesh_generator;
   /// Stress variable names
@@ -109,24 +108,15 @@ protected:
     Real stress_xy;
     Real physical_density;
     Real stress_sensitivity;
-    std::vector<dof_id_type> nodes;
     RealEigenVector u_el;
     ElementData() = default;
-    ElementData(Real s_vm,
-                Real xx,
-                Real yy,
-                Real xy,
-                Real dens,
-                Real ds,
-                std::vector<dof_id_type> n,
-                RealEigenVector u_el)
+    ElementData(Real s_vm, Real xx, Real yy, Real xy, Real dens, Real ds, RealEigenVector u_el)
       : vonmises_stress(s_vm),
         stress_xx(xx),
         stress_yy(yy),
         stress_xy(xy),
         physical_density(dens),
         stress_sensitivity(ds),
-        nodes(n),
         u_el(u_el)
     {
     }
