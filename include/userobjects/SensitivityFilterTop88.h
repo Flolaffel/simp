@@ -24,10 +24,10 @@ public:
 
   SensitivityFilterTop88(const InputParameters & parameters);
 
-  virtual void initialize() override{};
+  virtual void initialize() override;
   virtual void execute() override;
-  virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void finalize() override {};
+  virtual void threadJoin(const UserObject &) override {};
 
 protected:
   /// Radial average user object

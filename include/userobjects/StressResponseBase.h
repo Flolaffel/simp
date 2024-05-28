@@ -26,13 +26,13 @@ public:
   virtual void initialSetup() override;
   virtual void initialize() override;
   virtual void execute() override;
-  virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void finalize() override {};
+  virtual void threadJoin(const UserObject &) override {};
 
   virtual void gatherElementData() override;
   virtual void computeStress() = 0;
-  virtual void computeValue() override{};
-  virtual void computeSensitivity() override{};
+  virtual void computeValue() override {};
+  virtual void computeSensitivity() override {};
 
 protected:
   /// DOF map

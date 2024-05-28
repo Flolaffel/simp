@@ -36,7 +36,8 @@ registerMooseObject("MooseApp", RadialAverageTop88);
 // specialization for PointListAdaptor<RadialAverageTop88::QPData>
 template <>
 const Point &
-PointListAdaptor<RadialAverageTop88::QPData>::getPoint(const RadialAverageTop88::QPData & item) const
+PointListAdaptor<RadialAverageTop88::QPData>::getPoint(
+    const RadialAverageTop88::QPData & item) const
 {
   return item._q_point;
 }
@@ -351,7 +352,8 @@ StandardType<RadialAverageTop88::QPData>::StandardType(const RadialAverageTop88:
   libmesh_call_mpi(MPI_Type_commit(&tmptype));
 
   // resize the structure type to account for padding, if any
-  libmesh_call_mpi(MPI_Type_create_resized(tmptype, 0, sizeof(RadialAverageTop88::QPData), &_datatype));
+  libmesh_call_mpi(
+      MPI_Type_create_resized(tmptype, 0, sizeof(RadialAverageTop88::QPData), &_datatype));
   libmesh_call_mpi(MPI_Type_free(&tmptype));
 
   this->commit();
@@ -359,7 +361,8 @@ StandardType<RadialAverageTop88::QPData>::StandardType(const RadialAverageTop88:
 #endif // LIBMESH_HAVE_MPI
 }
 
-StandardType<RadialAverageTop88::QPData>::StandardType(const StandardType<RadialAverageTop88::QPData> & t)
+StandardType<RadialAverageTop88::QPData>::StandardType(
+    const StandardType<RadialAverageTop88::QPData> & t)
   : DataType(t._datatype)
 {
 #ifdef LIBMESH_HAVE_MPI
