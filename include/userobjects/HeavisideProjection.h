@@ -37,18 +37,19 @@ protected:
 private:
   struct ElementData
   {
-    Real design_density;
     Real filtered_density;
     Real projected_density;
     ElementData() = default;
-    ElementData(Real dens, Real filt_dens, Real proj_dens)
-      : design_density(dens), filtered_density(filt_dens), projected_density(proj_dens)
+    ElementData(Real filt_dens, Real proj_dens)
+      : filtered_density(filt_dens), projected_density(proj_dens)
     {
     }
   };
 
   /// Data structure to hold element data.
   std::map<dof_id_type, ElementData> _elem_data_map;
+
+  std::vector<std::pair<dof_id_type, Real>> _design_density_vec;
 
   /**
    * Gathers element data

@@ -38,7 +38,6 @@ VolumeResponse::initialize()
 void
 VolumeResponse::execute()
 {
-  TIME_SECTION("execute", 3, "Writing Volume Sensitivity");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -87,7 +86,7 @@ VolumeResponse::computeValue()
   {
     value += elem_data.physical_density;
   }
-
+  _communicator.sum(value);
   if (_is_objective)
     // min: V_rel = V / V_0
     value /= _n_el;

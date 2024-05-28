@@ -44,26 +44,11 @@ protected:
   MooseVariable * _filtered_density;
 
 private:
-  struct ElementData
-  {
-    std::vector<Real> sensitivities;
-    Real design_density;
-    Real filtered_density;
-    std::vector<Real> filtered_sensitivities;
-    ElementData() = default;
-    ElementData(std::vector<Real> sens, Real dens, Real filt_dens, std::vector<Real> filt_sens)
-      : sensitivities(sens),
-        design_density(dens),
-        filtered_density(filt_dens),
-        filtered_sensitivities(filt_sens)
-    {
-    }
-  };
-
-  /// Data structure to hold element data
-  std::map<dof_id_type, ElementData> _elem_data_map;
-
-  const std::map<dof_id_type, GatherElementData::ElementData> & _map;
+  /// Data structures to hold element data
+  std::vector<std::vector<std::pair<dof_id_type, Real>>> _sensitivities_vec;
+  std::vector<std::pair<dof_id_type, Real>> _design_density_vec;
+  std::vector<std::pair<dof_id_type, Real>> _filtered_density_vec;
+  std::map<dof_id_type, std::vector<Real>> _filtered_sensitivities_map;
 
   /**
    * Gathers element data

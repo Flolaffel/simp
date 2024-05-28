@@ -38,23 +38,26 @@ DensityFilter::initialize()
 {
   TIME_SECTION("initialize", 2, "Preparing DensityFilter");
   gatherElementData();
+  if (_app.n_processors() > 1)
+  {
+    _communicator.allgather(_design_density_vec, false);
+    std::sort(_design_density_vec.begin(), _design_density_vec.end());
+  }
   densityFilter();
 }
 
 void
 DensityFilter::execute()
 {
-  TIME_SECTION("execute", 3, "Writing Filtered Density");
   // Grab the element data for each id
-  auto elem_data_iter = _elem_data_map.find(_current_elem->id());
+  auto elem_data_iter = _filtered_density_map.find(_current_elem->id());
 
   // Check if the element data is not null
-  mooseAssert(elem_data_iter != _elem_data_map.end(),
+  mooseAssert(elem_data_iter != _filtered_density_map.end(),
               "Element data not found for the current element id.");
 
-  ElementData & elem_data = elem_data_iter->second;
-  dynamic_cast<MooseVariableFE<Real> *>(_physical_density)
-      ->setNodalValue(elem_data.filtered_density);
+  Real & filtered_density = elem_data_iter->second;
+  dynamic_cast<MooseVariableFE<Real> *>(_physical_density)->setNodalValue(filtered_density);
 }
 
 void
@@ -62,23 +65,22 @@ DensityFilter::threadJoin(const UserObject & y)
 {
   TIME_SECTION("threadJoin", 3, "Join VolumeResponse Threads");
   const DensityFilter & uo = static_cast<const DensityFilter &>(y);
-  _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
+  _filtered_density_map.insert(uo._filtered_density_map.begin(), uo._filtered_density_map.end());
 }
 
 void
 DensityFilter::gatherElementData()
 {
   TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
-  _elem_data_map.clear();
+  _filtered_density_map.clear();
+  _design_density_vec.clear();
 
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
     {
-      dof_id_type elem_id = elem->id();
-
-      ElementData data = ElementData(
-          dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem), 0);
-      _elem_data_map[elem_id] = data;
+      _design_density_vec.emplace_back(
+          elem->id(),
+          dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem));
     }
 }
 
@@ -87,15 +89,15 @@ DensityFilter::densityFilter()
 {
   TIME_SECTION("densityFilter", 3, "Filtering Density");
   RealEigenVector density(_n_el);
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    density(id) = elem_data.design_density;
+    density(i) = _design_density_vec[i].second;
   }
 
   RealEigenVector filtered = (_H * density).array() / _Hs.array();
 
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    elem_data.filtered_density = filtered(id);
+    _filtered_density_map[i] = filtered(i);
   }
 }

@@ -34,16 +34,11 @@ protected:
   MooseWritableVariable * _physical_density;
 
 private:
-  struct ElementData
-  {
-    Real design_density;
-    Real filtered_density;
-    ElementData() = default;
-    ElementData(Real dens, Real filt_dens) : design_density(dens), filtered_density(filt_dens) {}
-  };
+  /// Data structure to hold current design density
+  std::vector<std::pair<dof_id_type, Real>> _design_density_vec;
 
-  /// Data structure to hold current design density and filtered (physical) density
-  std::map<dof_id_type, ElementData> _elem_data_map;
+  /// Data structure to hold filtered (physical) density
+  std::map<dof_id_type, Real> _filtered_density_map;
 
   /**
    * Gathers element data

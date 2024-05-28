@@ -140,6 +140,7 @@ DensityUpdateOC::performOcLoop()
     // Compute the midpoint between l1 and l2
     Real lmid = 0.5 * (l2 + l1);
     std::vector<Real> new_density(_n_el);
+    std::vector<std::pair<dof_id_type, Real>> comm_density;
     // Loop over all elements
     for (auto && [id, elem_data] : _elem_data_map)
     {
@@ -148,6 +149,18 @@ DensityUpdateOC::performOcLoop()
                                               elem_data.objective_sensitivity,
                                               elem_data.volume_sensitivity,
                                               lmid);
+      comm_density.emplace_back(id, new_density[id]);
+    }
+    // Gather new densities from all processors and write them to new_density in order
+    if (_app.n_processors() > 1)
+    {
+      _communicator.allgather(comm_density, false);
+      std::sort(comm_density.begin(), comm_density.end());
+      new_density.clear();
+      std::transform(comm_density.begin(),
+                     comm_density.end(),
+                     std::back_inserter(new_density),
+                     [](const std::pair<dof_id_type, Real> & p) { return p.second; });
     }
     std::vector<Real> phys_density = new_density;
     std::vector<Real> filt_density(_n_el), proj_density(_n_el);

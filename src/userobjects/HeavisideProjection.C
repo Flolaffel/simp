@@ -41,6 +41,11 @@ void
 HeavisideProjection::initialize()
 {
   gatherElementData();
+  if (_app.n_processors() > 1)
+  {
+    _communicator.allgather(_design_density_vec, false);
+    std::sort(_design_density_vec.begin(), _design_density_vec.end());
+  }
   densityFilter();
   heavisideProjection();
 }
@@ -73,15 +78,14 @@ void
 HeavisideProjection::gatherElementData()
 {
   _elem_data_map.clear();
+  _design_density_vec.clear();
 
   for (const auto & sub_id : blockIDs())
     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
     {
       dof_id_type elem_id = elem->id();
-
-      ElementData data = ElementData(
-          dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem), 0, 0);
-      _elem_data_map[elem_id] = data;
+      _design_density_vec.emplace_back(
+          elem_id, dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem));
     }
 }
 
@@ -89,16 +93,16 @@ void
 HeavisideProjection::densityFilter()
 {
   RealEigenVector density(_n_el);
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    density(id) = elem_data.design_density;
+    density(i) = _design_density_vec[i].second;
   }
 
   RealEigenVector filtered = (_H * density).array() / _Hs.array();
 
-  for (auto && [id, elem_data] : _elem_data_map)
+  for (unsigned int i = 0; i < _n_el; i++)
   {
-    elem_data.filtered_density = filtered(id);
+    _elem_data_map[i].filtered_density = filtered(i);
   }
 }
 

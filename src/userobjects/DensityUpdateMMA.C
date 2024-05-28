@@ -83,7 +83,6 @@ DensityUpdateMMA::initialize()
 void
 DensityUpdateMMA::execute()
 {
-  TIME_SECTION("execute", 3, "Updating Density and Asymptotes");
   // Grab the element data for each id
   auto elem_data_iter = _elem_data_map.find(_current_elem->id());
 
@@ -147,13 +146,17 @@ DensityUpdateMMA::performMmaLoop()
   unsigned int n = _n_el;
 
   // Vector variables of size n
-  std::vector<Real> xmin(n), xmax(n, 1), xold1(n), xold2(n), low(n), upp(n), xval(n), df0dx(n);
+  std::vector<Real> xmin(n), xmax(n, 1);
+  std::vector<Real> xval, xold1, xold2, df0dx, low, upp;
+  std::vector<std::pair<dof_id_type, Real>> comm_xval, comm_df0dx, comm_xold1, comm_xold2, comm_low,
+      comm_upp;
 
   // Vector variables of size m
   std::vector<Real> fval(m), a(m), c_MMA(m, 10000), d(m, 1);
 
   // Matrix variable of size m x n
-  std::vector<std::vector<Real>> dfdx(m, std::vector<Real>(n));
+  std::vector<std::vector<Real>> dfdx(m);
+  std::vector<std::vector<std::pair<dof_id_type, Real>>> comm_dfdx(m);
 
   // Scalar constants
   Real a0 = 1;
@@ -161,17 +164,17 @@ DensityUpdateMMA::performMmaLoop()
   // Loop over all elements to populate the vectors
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    xval[id] = elem_data.current_design_density;
-    xold1[id] = elem_data.old_design_density1;
-    xold2[id] = elem_data.old_design_density2;
+    comm_xval.emplace_back(id, elem_data.current_design_density);
+    comm_xold1.emplace_back(id, elem_data.old_design_density1);
+    comm_xold2.emplace_back(id, elem_data.old_design_density2);
     /*f0val not needed*/
-    df0dx[id] = elem_data.objective_sensitivity;
+    comm_df0dx.emplace_back(id, elem_data.objective_sensitivity);
     for (unsigned int i = 0; i < m; i++)
     {
-      dfdx[i][id] = elem_data.constraint_sensitivities[i];
+      comm_dfdx[i].emplace_back(id, elem_data.constraint_sensitivities[i]);
     }
-    low[id] = elem_data.lower;
-    upp[id] = elem_data.upper;
+    comm_low.emplace_back(id, elem_data.lower);
+    comm_upp.emplace_back(id, elem_data.upper);
   }
 
   for (unsigned int i = 0; i < m; i++)
@@ -179,8 +182,65 @@ DensityUpdateMMA::performMmaLoop()
     fval[i] = *(_constraint_values[0]->sln().data());
   }
 
-  /// MMA
+  /// MPI communication
+  if (_app.n_processors() > 1)
+  {
+    _communicator.allgather(comm_xval, false);
+    _communicator.allgather(comm_xold1, false);
+    _communicator.allgather(comm_xold2, false);
+    _communicator.allgather(comm_df0dx, false);
+    for (unsigned int i = 0; i < m; i++)
+    {
+      _communicator.allgather(comm_dfdx[i], false);
+    }
+    _communicator.allgather(comm_low, false);
+    _communicator.allgather(comm_upp, false);
 
+    std::sort(comm_xval.begin(), comm_xval.end());
+    std::sort(comm_xold1.begin(), comm_xold1.end());
+    std::sort(comm_xold2.begin(), comm_xold2.end());
+    std::sort(comm_df0dx.begin(), comm_df0dx.end());
+    for (unsigned int i = 0; i < m; i++)
+    {
+      std::sort(comm_dfdx[i].begin(), comm_dfdx[i].end());
+    }
+    std::sort(comm_low.begin(), comm_low.end());
+    std::sort(comm_upp.begin(), comm_upp.end());
+  }
+
+  std::transform(comm_xval.begin(),
+                 comm_xval.end(),
+                 std::back_inserter(xval),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  std::transform(comm_xold1.begin(),
+                 comm_xold1.end(),
+                 std::back_inserter(xold1),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  std::transform(comm_xold2.begin(),
+                 comm_xold2.end(),
+                 std::back_inserter(xold2),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  std::transform(comm_df0dx.begin(),
+                 comm_df0dx.end(),
+                 std::back_inserter(df0dx),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  for (unsigned int i = 0; i < m; i++)
+  {
+    std::transform(comm_dfdx[i].begin(),
+                   comm_dfdx[i].end(),
+                   std::back_inserter(dfdx[i]),
+                   [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  }
+  std::transform(comm_low.begin(),
+                 comm_low.end(),
+                 std::back_inserter(low),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+  std::transform(comm_upp.begin(),
+                 comm_upp.end(),
+                 std::back_inserter(upp),
+                 [](const std::pair<dof_id_type, Real> & p) { return p.second; });
+
+  /// MMA
   // NOTE: could be parametrized if needed
   Real epsimin = 0.0000001;
   Real raa0 = 0.00001;
