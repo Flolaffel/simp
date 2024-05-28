@@ -144,7 +144,7 @@ RadialAverageTop88::finalize()
     // data structures for sparse point to point communication
     std::vector<std::vector<QPData>> send(_candidate_procs.size());
     std::vector<Parallel::Request> send_requests(_candidate_procs.size());
-    Parallel::MessageTag send_tag = _communicator.get_unique_tag(4711);
+    Parallel::MessageTag send_tag = _communicator.get_unique_tag();
     std::vector<QPData> receive;
 
     const auto item_type = TIMPI::StandardType<QPData>(&(_qp_data[0]));
