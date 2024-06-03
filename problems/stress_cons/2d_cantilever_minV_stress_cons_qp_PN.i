@@ -74,11 +74,11 @@ start_dens = 1
     family = MONOMIAL
     order = CONSTANT
   []
-  [PM]
+  [PN]
     family = SCALAR
     order = FIRST
   []
-  [dPM]
+  [dPN]
     family = MONOMIAL
     order = CONSTANT
   []
@@ -178,7 +178,7 @@ start_dens = 1
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
   []
@@ -256,34 +256,39 @@ start_dens = 1
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    update_scheme = MMA
+    type = DensityUpdateMMA
     objective_function_sensitivity = dV
-    constraint_values = 'PM'
-    constraint_sensitivities = 'dPM'
+    constraint_values = 'PN'
+    constraint_sensitivities = 'dPN'
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    filter_type = density
-    mesh_generator = MeshGenerator
     move_limit = 0.01
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
   [filt_sens]
     type = SensitivityFilterCustom
     filter_type = density
-    sensitivities = 'dc dV dPM'
+    sensitivities = 'dc dV dPN'
+    mesh_generator = MeshGenerator
+  []
+  [filt_dens]
+    type = DensityFilter
+    design_density = rho
+    physical_density = rhoPhys
+    radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
   [stress_sens]
     type = StressResponseQpPNorm
     usage = constraint
     limit = 1
-    value = PM
-    sensitivity = dPM
+    value = PN
+    sensitivity = dPN
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
+    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
@@ -300,8 +305,8 @@ start_dens = 1
   petsc_options_value = 'lu superlu_dist'
   nl_abs_tol = 1e-8
   dt = 1
-  num_steps = 100
-  #num_steps = 690
+  #num_steps = 100
+  num_steps = 690
 []
 
 [Outputs]

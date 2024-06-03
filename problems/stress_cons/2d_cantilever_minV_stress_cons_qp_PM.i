@@ -178,7 +178,7 @@ start_dens = 1
   []
   [dc]
     type = AnalyticComplianceSensitivity
-    design_density = rhoPhys
+    physical_density = rhoPhys
     youngs_modulus = E_phys
     incremental = false
   []
@@ -256,8 +256,7 @@ start_dens = 1
 
 [UserObjects]
   [update]
-    type = DensityUpdateCustom
-    update_scheme = MMA
+    type = DensityUpdateMMA
     objective_function_sensitivity = dV
     constraint_values = 'PM'
     constraint_sensitivities = 'dPM'
@@ -265,8 +264,6 @@ start_dens = 1
     old_design_density2 = rho_old2
     mma_lower_asymptotes = low
     mma_upper_asymptotes = upp
-    filter_type = density
-    mesh_generator = MeshGenerator
     move_limit = 0.01
   []
   # needs MaterialRealAux to copy sensitivity (mat prop) to Dc aux variable
@@ -274,6 +271,13 @@ start_dens = 1
     type = SensitivityFilterCustom
     filter_type = density
     sensitivities = 'dc dV dPM'
+    mesh_generator = MeshGenerator
+  []
+  [filt_dens]
+    type = DensityFilter
+    design_density = rho
+    physical_density = rhoPhys
+    radius = ${filter_radius}
     mesh_generator = MeshGenerator
   []
   [stress_sens]
@@ -284,6 +288,7 @@ start_dens = 1
     sensitivity = dPM
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
+    mesh_generator = MeshGenerator
   []
   [vol_sens]
     type = VolumeResponse
