@@ -22,8 +22,8 @@ public:
 
   StressResponseEpsPNorm(const InputParameters & parameters);
 
-  virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void finalize() override {};
+  virtual void threadJoin(const UserObject &) override {};
 
   virtual void computeStress() override;
   virtual void computeValue() override;

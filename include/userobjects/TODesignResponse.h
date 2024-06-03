@@ -35,10 +35,10 @@ public:
 
   TODesignResponse(const InputParameters & parameters);
 
-  virtual void initialize() override{};
-  virtual void execute() override{};
-  virtual void finalize() override{};
-  virtual void threadJoin(const UserObject &) override{};
+  virtual void initialize() override {};
+  virtual void execute() override {};
+  virtual void finalize() override {};
+  virtual void threadJoin(const UserObject &) override {};
 
   /**
    * Gathers element data necessary to calculate stress sensitivity
