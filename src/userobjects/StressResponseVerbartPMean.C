@@ -54,6 +54,7 @@ StressResponseVerbartPMean::computeValue()
     if (_is_constraint)
       PM += std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P);
   }
+  _communicator.sum(PM);
   PM = std::pow(1.0 / _n_el * PM, 1.0 / _P) - 1;
   _value->reinit();
   _value->setValues(PM);
@@ -66,21 +67,28 @@ StressResponseVerbartPMean::computeSensitivity()
 {
   TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
   /// dsigma^PM/drho and dsigma^PM/dsigma_VMi
-  RealEigenVector dPMdx(_n_el), dPMdVM(_n_el);
+  std::vector<Real> dPMdx_vec(_n_el), dPMdVM_vec(_n_el);
   Real sum = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
     sum += std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P);
   }
+  _communicator.sum(sum);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    dPMdx(id) = std::pow(1.0 / _n_el, 1.0 / _P) * 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
-                std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P - 1) *
-                (_vonmises(id) / _limit - 1);
-    dPMdVM(id) = std::pow(1.0 / _n_el, 1.0 / _P) * 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
-                 std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P - 1) *
-                 elem_data.physical_density / _limit;
+    dPMdx_vec[id] =
+        std::pow(1.0 / _n_el, 1.0 / _P) * 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
+        std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P - 1) *
+        (_vonmises(id) / _limit - 1);
+    dPMdVM_vec[id] =
+        std::pow(1.0 / _n_el, 1.0 / _P) * 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
+        std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P - 1) *
+        elem_data.physical_density / _limit;
   }
+  _communicator.sum(dPMdx_vec);
+  _communicator.sum(dPMdVM_vec);
+  RealEigenVector dPMdx = Eigen::Map<RealEigenVector>(dPMdx_vec.data(), dPMdx_vec.size());
+  RealEigenVector dPMdVM = Eigen::Map<RealEigenVector>(dPMdVM_vec.data(), dPMdVM_vec.size());
 
   /// dsigma_VMi/dsigma_i
   std::vector<RealEigenVector> dVMdS(_n_el, RealEigenVector(3));
@@ -91,8 +99,8 @@ StressResponseVerbartPMean::computeSensitivity()
     dVMdS[id](2) = 3 / _vonmises(id) * _stress(id, 2);
   }
 
-  /// vector gamma and gamma_red
-  std::vector<Real> gamma(_n_dofs), gamma_red(_n_dofs);
+  /// vector gamma
+  std::vector<Real> gamma(_n_dofs);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector vector = getBMat(0, 0) * _E * dVMdS[id];
@@ -103,10 +111,11 @@ StressResponseVerbartPMean::computeSensitivity()
       x++;
     }
   }
+  _communicator.sum(gamma);
 
   /// vector lambda
   RealEigenVector lambda;
-  lambda = getLambda(gamma, _fixed_dofs);
+  lambda = getLambda(gamma);
 
   /// final sensitivity
   RealEigenVector T1 = dPMdx;

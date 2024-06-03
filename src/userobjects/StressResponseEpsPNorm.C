@@ -35,8 +35,6 @@ StressResponseEpsPNorm::computeStress()
   _vonmises.resize(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    // RealEigenVector u_el = _U(_elem_to_dof_map_test[id].second);
-    // std::cout << id << ": " << u_el << std::endl;
     RealEigenVector vector =
         elem_data.physical_density /
         (_eps * (1 - elem_data.physical_density) + elem_data.physical_density) * _E *
@@ -52,25 +50,18 @@ StressResponseEpsPNorm::computeValue()
 {
   TIME_SECTION("computeValue", 3, "Computing P-norm value");
   Real PN = 0;
-  std::cout << _elem_data_map.size() << std::endl;
-  std::cout << _vonmises << std::endl;
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    std::cout << "id: " << id << ", mises: " << _vonmises(id) << std::endl;
     if (_is_objective)
       PN += std::pow(_vonmises(id), _P);
     if (_is_constraint)
       PN += std::pow(_vonmises(id) / _limit, _P);
   }
-  // _communicator.sum(PN);
+  _communicator.sum(PN);
   PN = std::pow(PN, 1.0 / _P) - 1;
-  std::cout << PN << std::endl;
   _value->setValues(PN);
-  std::cout << "test" << std::endl;
   _value->insert(_value->sys().solution());
-  std::cout << "test1" << std::endl;
-  // _value->sys().solution().close();
-  std::cout << "test2" << std::endl;
+  _value->sys().solution().close();
 }
 
 void
@@ -78,18 +69,21 @@ StressResponseEpsPNorm::computeSensitivity()
 {
   TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
   /// dsigma^PN/dsigma_VMi
-  RealEigenVector dPNdVM(_n_el);
+  std::vector<Real> dPNdVM_vec(_n_el);
   Real sum = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
     sum += std::pow(_vonmises(id) / _limit, _P);
   }
+  _communicator.sum(sum);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    dPNdVM(id) = 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
-                 std::pow(_vonmises(id) / _limit, _P - 1) * 1 / _limit;
+    dPNdVM_vec[id] = 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
+                     std::pow(_vonmises(id) / _limit, _P - 1) * 1 / _limit;
   }
-  std::cout << "test" << std::endl;
+  _communicator.sum(dPNdVM_vec);
+  RealEigenVector dPNdVM = Eigen::Map<RealEigenVector>(dPNdVM_vec.data(), dPNdVM_vec.size());
+
   /// dsigma_VMi/dsigma_i
   std::vector<RealEigenVector> dVMdS(_n_el, RealEigenVector(3));
   for (auto && [id, elem_data] : _elem_data_map)
@@ -98,21 +92,21 @@ StressResponseEpsPNorm::computeSensitivity()
     dVMdS[id](1) = 0.5 / _vonmises(id) * (2 * _stress(id, 1) - _stress(id, 0));
     dVMdS[id](2) = 3 / _vonmises(id) * _stress(id, 2);
   }
-  std::cout << "test1" << std::endl;
 
   /// vector beta
-  RealEigenVector beta(_n_el);
+  std::vector<Real> beta_vec(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenMatrix B = getBMat(0, 0);
     // RealEigenVector u_el = _U(_elem_to_dof_map_test[id].second);
     Real value = dVMdS[id].transpose() * _E * B.transpose() * elem_data.u_el;
-    beta(id) = _eps / std::pow(elem_data.physical_density * (_eps - 1) - _eps, 2) * value;
+    beta_vec[id] = _eps / std::pow(elem_data.physical_density * (_eps - 1) - _eps, 2) * value;
   }
-  std::cout << "test2" << std::endl;
+  _communicator.sum(beta_vec);
+  RealEigenVector beta = Eigen::Map<RealEigenVector>(beta_vec.data(), beta_vec.size());
 
-  /// vector gamma and gamma_red
-  std::vector<Real> gamma(_n_dofs), gamma_red(_n_dofs);
+  /// vector gamma
+  std::vector<Real> gamma(_n_dofs);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector vector = getBMat(0, 0) * _E * dVMdS[id];
@@ -126,13 +120,11 @@ StressResponseEpsPNorm::computeSensitivity()
       x++;
     }
   }
-  _communicator.allgather(gamma, false);
-  std::cout << "test3" << std::endl;
+  _communicator.sum(gamma);
 
   /// vector lambda
   RealEigenVector lambda;
-  lambda = getLambda(gamma, _fixed_dofs);
-  std::cout << "test4" << std::endl;
+  lambda = getLambda(gamma);
 
   /// final sensitivity
   RealEigenVector T1 = dPNdVM.cwiseProduct(beta);
@@ -141,5 +133,4 @@ StressResponseEpsPNorm::computeSensitivity()
   {
     elem_data.stress_sensitivity = T1(id) + T2(id);
   }
-  std::cout << "test5" << std::endl;
 }

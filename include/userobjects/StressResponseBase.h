@@ -87,15 +87,14 @@ protected:
   Real _l_el;
   /// Number of DOFs
   dof_id_type _n_dofs;
+  /// Number of local DOFs
+  dof_id_type _n_local_dofs;
   /// Vector of all DOFs
   std::vector<dof_id_type> _all_dofs;
   /// Vector of fixed DOFs
   std::vector<dof_id_type> _fixed_dofs;
-  /// Vector of free DOFs
-  std::vector<dof_id_type> _free_dofs;
   /// Map of DOFs per element
   std::vector<std::vector<dof_id_type>> _elem_to_dof_map;
-  std::vector<std::pair<dof_id_type, std::vector<dof_id_type>>> _elem_to_dof_map_test;
   /// Map of DOFs per node
   std::vector<std::vector<dof_id_type>> _node_to_dof_map;
   /// Element stiffness matrix
@@ -175,7 +174,7 @@ protected:
   /**
    * Copmutes lambda from system matrix and gamma_red
    */
-  RealEigenVector getLambda(std::vector<Real> gamma, std::vector<dof_id_type> fixed_dofs);
+  RealEigenVector getLambda(std::vector<Real> gamma);
 
   /**
    * Copmutes T2 from lambda

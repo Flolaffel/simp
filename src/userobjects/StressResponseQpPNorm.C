@@ -56,6 +56,7 @@ StressResponseQpPNorm::computeValue()
     if (_is_constraint)
       PN += std::pow(_vonmises(id) / _limit, _P);
   }
+  _communicator.sum(PN);
   PN = std::pow(PN, 1.0 / _P) - 1;
   _value->reinit();
   _value->setValues(PN);
@@ -68,17 +69,20 @@ StressResponseQpPNorm::computeSensitivity()
 {
   TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
   /// dsigma^PN/dsigma_VMi
-  RealEigenVector dPNdVM(_n_el);
+  std::vector<Real> dPNdVM_vec(_n_el);
   Real sum = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
     sum += std::pow(_vonmises(id) / _limit, _P);
   }
+  _communicator.sum(sum);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    dPNdVM(id) = 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
-                 std::pow(_vonmises(id) / _limit, _P - 1) * 1 / _limit;
+    dPNdVM_vec[id] = 1.0 / _P * std::pow(sum, 1.0 / _P - 1) * _P *
+                     std::pow(_vonmises(id) / _limit, _P - 1) * 1 / _limit;
   }
+  _communicator.sum(dPNdVM_vec);
+  RealEigenVector dPNdVM = Eigen::Map<RealEigenVector>(dPNdVM_vec.data(), dPNdVM_vec.size());
 
   /// dsigma_VMi/dsigma_i
   std::vector<RealEigenVector> dVMdS(_n_el, RealEigenVector(3));
@@ -90,17 +94,19 @@ StressResponseQpPNorm::computeSensitivity()
   }
 
   /// vector beta
-  RealEigenVector beta(_n_el);
+  std::vector<Real> beta_vec(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenMatrix B = getBMat(0, 0);
     RealEigenVector u_el = _U(_elem_to_dof_map[id]);
     Real value = dVMdS[id].transpose() * _E * B.transpose() * u_el;
-    beta(id) = _q * std::pow(elem_data.physical_density, _q - 1) * value;
+    beta_vec[id] = _q * std::pow(elem_data.physical_density, _q - 1) * value;
   }
+  _communicator.sum(beta_vec);
+  RealEigenVector beta = Eigen::Map<RealEigenVector>(beta_vec.data(), beta_vec.size());
 
-  /// vector gamma and gamma_red
-  std::vector<Real> gamma(_n_dofs), gamma_red(_n_dofs);
+  /// vector gamma
+  std::vector<Real> gamma(_n_dofs);
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector vector = getBMat(0, 0) * _E * dVMdS[id];
@@ -111,10 +117,11 @@ StressResponseQpPNorm::computeSensitivity()
       x++;
     }
   }
+  _communicator.sum(gamma);
 
   /// vector lambda
   RealEigenVector lambda;
-  lambda = getLambda(gamma, _fixed_dofs);
+  lambda = getLambda(gamma);
 
   /// final sensitivity
   RealEigenVector T1 = dPNdVM.cwiseProduct(beta);
