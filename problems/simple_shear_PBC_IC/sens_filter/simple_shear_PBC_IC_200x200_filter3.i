@@ -97,7 +97,7 @@ Emin = 1e-6
     inside = 0
     outside = ${vol_frac}
   []
-[] 
+[]
 
 [BCs]
   [Periodic]
