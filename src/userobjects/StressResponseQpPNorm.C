@@ -32,7 +32,9 @@ StressResponseQpPNorm::computeStress()
 {
   TIME_SECTION("computeStress", 3, "Computing stress at element center");
   _stress.resize(_n_el, 3);
+  _stress.setZero();
   _vonmises.resize(_n_el);
+  _vonmises.setZero();
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector u_el = _U(_elem_to_dof_map[id]);
