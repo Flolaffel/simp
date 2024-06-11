@@ -120,8 +120,7 @@ StressResponseQpPNorm::computeSensitivity()
   _communicator.sum(gamma);
 
   /// vector lambda
-  RealEigenVector lambda;
-  lambda = getLambda(gamma);
+  RealEigenVector lambda = getLambda(gamma);
 
   /// final sensitivity
   RealEigenVector T1 = dPNdVM.cwiseProduct(beta);
