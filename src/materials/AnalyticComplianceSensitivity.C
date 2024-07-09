@@ -10,7 +10,7 @@
 #include "AnalyticComplianceSensitivity.h"
 #include "Output.h"
 
-registerMooseObject("TensorMechanicsApp", AnalyticComplianceSensitivity);
+registerMooseObject("SolidMechanicsApp", AnalyticComplianceSensitivity);
 
 InputParameters
 AnalyticComplianceSensitivity::validParams()

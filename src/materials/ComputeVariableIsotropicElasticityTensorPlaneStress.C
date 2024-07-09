@@ -11,7 +11,7 @@
 
 #include <algorithm>
 
-registerMooseObject("TensorMechanicsApp", ComputeVariableIsotropicElasticityTensorPlaneStress);
+registerMooseObject("SolidMechanicsApp", ComputeVariableIsotropicElasticityTensorPlaneStress);
 
 InputParameters
 ComputeVariableIsotropicElasticityTensorPlaneStress::validParams()
