@@ -702,7 +702,6 @@ DensityUpdateMMA::MmaSubSolve(unsigned int m,
 
         for (unsigned int i = 0; i < n; i++)
         {
-          epsvecn[i] = epsi * een[i];
           ux1[i] = upp[i] - x[i];
           xl1[i] = x[i] - low[i];
           ux2[i] = ux1[i] * ux1[i];
@@ -765,12 +764,21 @@ DensityUpdateMMA::MmaSubSolve(unsigned int m,
 
         resinew = NormVec(residu);
         steg /= 2;
+
+        if (resinew <= residunorm || itto >= 50)
+          _console << "Iteration itto " << itto << ": Norm is " << residunorm
+                   << ". Current norm is " << resinew << std::endl;
       }
       residunorm = resinew;
       std::vector<Real> residuabs = AbsVec(residu);
       residumax = *std::max_element(std::begin(residuabs), std::end(residuabs));
+
+      if (residumax <= 0.9 * epsi || ittt >= 200)
+        _console << "Iteration ittt " << ittt << ": 0.9*epsi is " << 0.9 * epsi
+                 << ". Max residuum is " << residumax << std::endl;
     }
     epsi *= 0.1;
+    _console << "Epsi is " << epsi << ". Epsimin is " << epsimin << std::endl;
   }
   return x;
 }
