@@ -5,7 +5,7 @@ import numpy as np
 
 # get MOOSE values
 mooseFile = ex.Dataset(
-    "problems/simple_shear_PBC_IC/lagrange/simple_shear_F_PBC_bare_lag2_out.e"
+    "problems/simple_shear_PBC_IC/stress_cons/simple_shear_PBC_IC_dens_minV_sc_20x20_rot_out.e"
 )
 
 encoded_nodeset_names = mooseFile.variables["ns_names"]
@@ -71,13 +71,12 @@ with open("scripts/file.i", "w") as f:
                 "type = LinearNodalConstraintFix",
                 "variable = " + displacements[var],
                 "primary = '{0} {1} {2}'".format(
-                    tuple_nodesets[left_index][i + 1][0] - 1,
-                    tuple_nodesets[right_index][0][0] - 1,
+                    tuple_nodesets[right_index][i + 1][0] - 1,
                     tuple_nodesets[left_index][0][0] - 1,
+                    tuple_nodesets[right_index][0][0] - 1,
                 ),
                 "weights = '1 1 -1'",
-                "secondary_node_ids = "
-                + str(tuple_nodesets[right_index][i + 1][0] - 1),
+                "secondary_node_ids = " + str(tuple_nodesets[left_index][i + 1][0] - 1),
                 "penalty = " + str(penalty),
                 "formulation = kinematic",
             ]
@@ -95,8 +94,8 @@ with open("scripts/file.i", "w") as f:
                 "variable = " + displacements[var],
                 "primary = '{0} {1} {2}'".format(
                     tuple_nodesets[bottom_index][i + 1][0] - 1,
-                    tuple_nodesets[top_index][0][0] - 1,
-                    tuple_nodesets[bottom_index][0][0] - 1,
+                    tuple_nodesets[top_index][-1][0] - 1,
+                    tuple_nodesets[bottom_index][-1][0] - 1,
                 ),
                 "weights = '1 1 -1'",
                 "secondary_node_ids = " + str(tuple_nodesets[top_index][i + 1][0] - 1),
