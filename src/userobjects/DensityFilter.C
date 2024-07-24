@@ -41,6 +41,7 @@ DensityFilter::initialize()
   if (_app.n_processors() > 1)
   {
     _communicator.allgather(_design_density_vec, false);
+    mooseAssert(_design_density_vec.size() == _n_el, "MPI gathering failed.");
     std::sort(_design_density_vec.begin(), _design_density_vec.end());
   }
   densityFilter();
@@ -89,10 +90,18 @@ DensityFilter::densityFilter()
 {
   TIME_SECTION("densityFilter", 3, "Filtering Density");
   RealEigenVector density(_n_el);
+  bool check = true;
   for (unsigned int i = 0; i < _n_el; i++)
   {
+    if (_design_density_vec[i].first != i)
+      check = false;
     density(i) = _design_density_vec[i].second;
   }
+
+  if (check)
+    std::cout << "Reihenfolge stimmt" << std::endl;
+  else
+    mooseError("Reihenfolge falsch");
 
   RealEigenVector filtered = (_H * density).array() / _Hs.array();
 
