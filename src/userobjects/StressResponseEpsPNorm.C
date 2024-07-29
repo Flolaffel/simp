@@ -42,6 +42,12 @@ StressResponseEpsPNorm::computeStress()
     _stress.row(id) << vector.transpose();
     _vonmises(id) = std::sqrt(std::pow(vector(0), 2) + std::pow(vector(1), 2) -
                               vector(0) * vector(1) + 3 * std::pow(vector(2), 2));
+    // Real factor = elem_data.physical_density /
+    // (_eps * (1 - elem_data.physical_density) + elem_data.physical_density);
+    // vector(0) = factor * elem_data.stress_xx;
+    // vector(1) = factor * elem_data.stress_yy;
+    // vector(2) = factor * elem_data.stress_xy;
+    //_vonmises(id) = factor * elem_data.vonmises_stress;
   }
 }
 

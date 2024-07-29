@@ -39,6 +39,9 @@ StressResponseVerbartPMean::computeStress()
     _stress.row(id) << vector.transpose();
     _vonmises(id) = std::sqrt(std::pow(vector(0), 2) + std::pow(vector(1), 2) -
                               vector(0) * vector(1) + 3 * std::pow(vector(2), 2));
+    // vector(0) = elem_data.stress_xx;
+    // vector(1) = elem_data.stress_yy;
+    // vector(2) = elem_data.stress_xy;
   }
 }
 

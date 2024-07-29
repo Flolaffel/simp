@@ -25,6 +25,8 @@
 
 #include <algorithm>
 
+#include "NodalConstraint.h"
+
 InputParameters
 StressResponseBase::validParams()
 {
@@ -226,6 +228,28 @@ StressResponseBase::initializeDofVariables()
     }
   }
 
+  // std::vector<dof_id_type> test;
+  // auto & cons_warehouse = sys.getConstraintWarehouse();
+  // if (cons_warehouse.hasActiveNodalConstraints())
+  // {
+  //   const auto & ncs = cons_warehouse.getActiveNodalConstraints();
+  //   for (const auto & nc : ncs)
+  //   {
+  //     std::vector<dof_id_type> & secondary_node_ids = nc->getSecondaryNodeId();
+  //     std::vector<dof_id_type> & primary_node_ids = nc->getPrimaryNodeId();
+  //     test.insert(test.begin(), secondary_node_ids.begin(), secondary_node_ids.end());
+  //   }
+  //   for (auto & out : test)
+  //     std::cout << out << ", ";
+  //   std::cout << std::endl;
+  //   // std::sort(test.begin(), test.end());
+  //   test.erase(unique(test.begin(), test.end()), test.end());
+  //   for (auto & out : test)
+  //     std::cout << out << ", ";
+  //   std::cout << std::endl;
+  //   // _fixed_dofs.insert(_fixed_dofs.begin(), test.begin(), test.end());
+  // }
+
   // Elemen to DOF map
   _elem_to_dof_map.resize(_n_el);
   for (const auto & sub_id : blockIDs())
@@ -234,6 +258,8 @@ StressResponseBase::initializeDofVariables()
       std::vector<dof_id_type> dofs;
       for (auto & node : elem->node_ref_range())
       {
+        Node * node_ptr = &node;
+        // _dof_map.dof_indices(node_ptr, dofs);
         // NOTE: 2D only
         dofs.push_back(node.dof_number(_sys.number(), 0, 0));
         dofs.push_back(node.dof_number(_sys.number(), 1, 0));
@@ -308,6 +334,7 @@ StressResponseBase::initializeUVec()
   // Global displacement vector
   // NOTE: 2D ONLY
   _U.resize(_n_dofs);
+  _U.setZero();
   std::vector<std::pair<dof_id_type, Real>> U;
   for (auto && [id, node] : _nodal_data_map)
   {
@@ -334,6 +361,14 @@ StressResponseBase::getLambda(std::vector<Real> gamma)
                zeros.data(),
                INSERT_VALUES);
 
+  // auto K_petsc = dynamic_cast<PetscMatrix<Number> *>(&K);
+  // MatZeroRowsColumns(K_petsc->mat(),
+  //                    cast_int<PetscInt>(_fixed_dofs.size()),
+  //                    numeric_petsc_cast(_fixed_dofs.data()),
+  //                    1.0,
+  //                    NULL,
+  //                    NULL);
+
   solver.solve(K, K, lambda_petsc, gamma_red, 1e-8, 100);
 
   std::vector<Real> lambda(_n_dofs);
@@ -354,6 +389,7 @@ StressResponseBase::getT2(RealEigenVector lambda)
   {
     RealEigenVector lambda_el = lambda(_elem_to_dof_map[id]);
     RealEigenVector u_el = _U(_elem_to_dof_map[id]);
+    RealEigenVector test = _KE * elem_data.u_el;
     Real value = lambda_el.transpose() * _KE * elem_data.u_el;
     T2[id] = -_p * std::pow(elem_data.physical_density, _p - 1) * (_E0 - _Emin) * value;
   }
