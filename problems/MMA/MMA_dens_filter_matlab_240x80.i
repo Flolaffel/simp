@@ -1,5 +1,5 @@
-nx = 120
-ny = 40
+nx = 240
+ny = 80
 p = 3
 vol_frac = 0.5
 filter_radius = 1.5
@@ -111,11 +111,15 @@ Emin = 1e-9
   []
 []
 
-[Modules/TensorMechanics/Master]
-  [all]
-    strain = SMALL
-    add_variables = true
-    incremental = false
+[Physics]
+  [SolidMechanics]
+    [QuasiStatic]
+      [all]
+        strain = SMALL
+        add_variables = true
+        incremental = false
+      []
+    []
   []
 []
 
@@ -260,6 +264,6 @@ Emin = 1e-9
 []
 
 [Debug]
- # show_material_props = true
- # show_execution_order = ALWAYS
+  # show_material_props = true
+  # show_execution_order = ALWAYS
 []
