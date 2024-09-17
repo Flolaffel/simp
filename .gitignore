@@ -187,6 +187,7 @@ framework/contrib/asio/
 *.cpr
 *.cpa-*
 *.cpr-*
+*.gz
 
 # Ignore petsc arch
 petsc/arch-*/*
