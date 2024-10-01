@@ -179,7 +179,7 @@ DensityUpdateMMA::performMmaLoop()
 
   for (unsigned int i = 0; i < m; i++)
   {
-    fval[i] = *(_constraint_values[0]->sln().data());
+    fval[i] = *(_constraint_values[i]->sln().data());
   }
 
   /// MPI communication
