@@ -24,6 +24,7 @@ TODesignResponse::validParams()
   params.addParam<VariableName>("physical_density", "Physical density variable name.");
   params.set<bool>("force_postaux") = true;
   params.set<int>("execution_order_group") = 0;
+  params.addParam<bool>("scaling", false, "Whether to scale the constraint.");
   return params;
 }
 
@@ -36,10 +37,14 @@ TODesignResponse::TODesignResponse(const InputParameters & parameters)
     _value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
     _sensitivity(&writableVariable("sensitivity")),
     _physical_density_name(getParam<VariableName>("physical_density")),
-    _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name))
+    _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name)),
+    _scaling(getParam<bool>("scaling"))
 {
   if (_is_constraint && isParamValid("limit"))
+  {
     _limit = getParam<Real>("limit");
+    _scaled_limit = _limit;
+  }
   if (_is_constraint && !isParamValid("limit"))
     mooseError("Limit needed when usage is set to constraint");
   else if (_is_objective && isParamValid("limit"))

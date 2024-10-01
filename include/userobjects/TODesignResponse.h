@@ -46,6 +46,11 @@ public:
   virtual void gatherElementData() = 0;
 
   /**
+   * Adaptively scales constraint
+   */
+  virtual void scaleConstraint() = 0;
+
+  /**
    * Calculates the value
    */
   virtual void computeValue() = 0;
@@ -66,6 +71,10 @@ protected:
   const bool _is_constraint;
   /// Limit
   Real _limit;
+  /// Scaling
+  bool _scaling;
+  /// scaled limit
+  Real _scaled_limit;
   /// Value
   MooseVariableScalar * _value;
   /// Sensitivity with respect to density
