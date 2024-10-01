@@ -41,8 +41,8 @@ protected:
   /// Name of the mesh generator to get MeshMetaData from
   MeshGeneratorName _mesh_generator;
   /// Stress variable names
-  const std::vector<VariableName> _stress_names;
-  /// Von Mises stress variable
+  std::vector<VariableName> _stress_names;
+  /// qp Von Mises stress variable
   MooseVariable * _vonmises_stress;
   /// Stress_xx variable
   MooseVariable * _stress_xx;
@@ -109,6 +109,8 @@ protected:
   RealEigenMatrix _KE;
   /// Global displacement vector
   RealEigenVector _U;
+  /// System matrix name
+  std::string _system_matrix_name;
 
   struct ElementData
   {
@@ -188,4 +190,6 @@ protected:
    * Copmutes T2 from lambda
    */
   RealEigenVector computeT2(RealEigenVector lambda);
+
+  RealEigenMatrix getStress();
 };
