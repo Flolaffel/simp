@@ -26,6 +26,8 @@
 #include <algorithm>
 
 #include "NodalConstraint.h"
+#include "DirichletBCBase.h"
+#include "SystemBase.h"
 
 InputParameters
 StressResponseBase::validParams()
@@ -34,16 +36,18 @@ StressResponseBase::validParams()
   params.addClassDescription(
       "Computes the stress sensitivities for stress constrained topology optimization (2D ONLY).");
   params.addParam<std::vector<VariableName>>("stresses", "Stress names (VM, xx, yy, xy).");
-  params.addParam<std::vector<VariableName>>("displacements",
-                                             "Variable containing the x displacement");
+  params.addCoupledVar("interpolated_micro_vonmises_stress", "Interpolated stress.");
+  params.addCoupledVar("micro_vonmises_stress", "Von mises stress.");
+  params.addRequiredParam<std::vector<VariableName>>("displacements",
+                                                     "Variable containing the x displacement");
   params.addRequiredParam<Real>("E0", "Real youngs modulus");
   params.addRequiredParam<Real>("Emin", "Minimum youngs modulus");
   params.addRequiredParam<Real>("poissons_ratio", "Poisson's ratio");
   params.addRequiredParam<Real>("p", "Penalty value");
   params.addParam<Real>("P", 12, "Aggregation function parameter");
-  params.addParam<std::string>(
-      "system_matrix", "system", "The matrix tag name corresponding to the system matrix.");
-  params.addParam<MeshGeneratorName>(
+  params.addRequiredParam<std::string>("system_matrix",
+                                       "The matrix tag name corresponding to the system matrix.");
+  params.addRequiredParam<MeshGeneratorName>(
       "mesh_generator",
       "Name of the mesh generator to be used to retrieve control drums information.");
   return params;
@@ -52,15 +56,15 @@ StressResponseBase::validParams()
 StressResponseBase::StressResponseBase(const InputParameters & parameters)
   : TODesignResponse(parameters),
     _dof_map(_sys.dofMap()),
-    _stress_names(getParam<std::vector<VariableName>>("stresses")),
     _displacement_names(getParam<std::vector<VariableName>>("displacements")),
     _E0(getParam<Real>("E0")),
     _Emin(getParam<Real>("Emin")),
     _nu(getParam<Real>("poissons_ratio")),
     _p(getParam<Real>("p")),
-    _P(getParam<Real>("P"))
+    _P(getParam<Real>("P")),
+    _system_matrix_name(getParam<std::string>("system_matrix")),
+    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator"))
 {
-  _mesh_generator = getParam<MeshGeneratorName>("mesh_generator");
   _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
   _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
   _xmin = getMeshProperty<Real>("xmin", _mesh_generator);
@@ -73,6 +77,8 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
     mooseError("Please use quadratic elements for topology optimization.");
 
   if (isParamValid("stresses"))
+  {
+    _stress_names = getParam<std::vector<VariableName>>("stresses");
     for (unsigned int i = 0; i < _stress_names.size(); i++)
     {
       if (_stress_names[i].find("xx") != std::string::npos)
@@ -84,6 +90,7 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
       else if (_stress_names[i].find("mises") != std::string::npos)
         _vonmises_stress = &_subproblem.getStandardVariable(_tid, _stress_names[i]);
     }
+  }
 
   if (isParamValid("displacements"))
     for (unsigned int i = 0; i < _displacement_names.size(); i++)
@@ -95,6 +102,11 @@ StressResponseBase::StressResponseBase(const InputParameters & parameters)
     }
   else
     mooseError("Couldn't get displacements.");
+
+  if (isParamValid("interpolated_micro_vonmises_stress"))
+    _interpolated_micro_vonmises_stress = &writableVariable("interpolated_micro_vonmises_stress");
+  if (isParamValid("micro_vonmises_stress"))
+    _micro_vonmises_stress = &writableVariable("micro_vonmises_stress");
 }
 
 void
@@ -113,6 +125,7 @@ StressResponseBase::initialize()
   gatherNodalData();
   gatherElementData();
   initializeUVec();
+  scaleConstraint();
   computeStress();
   computeValue();
   computeSensitivity();
@@ -130,6 +143,115 @@ StressResponseBase::execute()
 
   ElementData & elem_data = elem_data_iter->second;
   dynamic_cast<MooseVariableFE<Real> *>(_sensitivity)->setNodalValue(elem_data.stress_sensitivity);
+
+  if (isParamValid("interpolated_micro_vonmises_stress"))
+    dynamic_cast<MooseVariableFE<Real> *>(_interpolated_micro_vonmises_stress)
+        ->setNodalValue(_interpolated_micro_vonmises(_current_elem->id()));
+
+  if (isParamValid("micro_vonmises_stress"))
+    dynamic_cast<MooseVariableFE<Real> *>(_micro_vonmises_stress)
+        ->setNodalValue(_micro_vonmises(_current_elem->id()));
+}
+
+void
+StressResponseBase::initializeDofVariables()
+{
+  TIME_SECTION("initializeDofVariables", 6, "Initializing DOF Variables");
+  // all DOFs
+  _n_dofs = _sys.system().n_dofs();
+  _n_local_dofs = _sys.system().n_local_dofs();
+  _all_dofs.resize(_n_dofs);
+  std::iota(std::begin(_all_dofs), std::end(_all_dofs), 0);
+
+  // fixed DOFS
+  NonlinearSystemBase & sys = static_cast<NonlinearSystemBase &>(_sys);
+  NumericVector<Number> & initial_solution(_sys.solution());
+  auto & nbc_warehouse = sys.getPresetNodalBCWarehouse();
+  if (nbc_warehouse.hasActiveObjects())
+  {
+    for (const auto & bnode : *_mesh.getBoundaryNodeRange())
+    {
+      BoundaryID boundary_id = bnode->_bnd_id;
+      Node * node = bnode->_node;
+
+      if (!nbc_warehouse.hasActiveBoundaryObjects(boundary_id) ||
+          node->processor_id() != processor_id())
+        continue;
+
+      _fe_problem.reinitNodeFace(node, boundary_id, 0);
+
+      for (const auto & bc : nbc_warehouse.getActiveBoundaryObjects(boundary_id))
+        if (bc->shouldApply())
+          for (unsigned int c = 0; c < bc->variable().count(); ++c)
+          {
+            dof_id_type dof = node->dof_number(sys.number(), bc->variable().number() + c, 0);
+            bc->computeValue(initial_solution);
+            if (initial_solution(dof) == 0)
+              _fixed_dofs.push_back(dof);
+          }
+    }
+  }
+
+  // Elemen to DOF map
+  _elem_to_dof_map.resize(_n_el);
+  for (const auto & sub_id : blockIDs())
+    for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
+    {
+      std::vector<dof_id_type> dofs;
+      for (auto & node : elem->node_ref_range())
+      {
+        Node * node_ptr = &node;
+        // _dof_map.dof_indices(node_ptr, dofs);
+        // NOTE: 2D only
+        dofs.push_back(node.dof_number(_sys.number(), 0, 0));
+        dofs.push_back(node.dof_number(_sys.number(), 1, 0));
+      }
+      dof_id_type elem_id = elem->id();
+      _elem_to_dof_map[elem_id] = dofs;
+    }
+}
+
+void
+StressResponseBase::initializeEMat()
+{
+  TIME_SECTION("initializeEMat", 6, "Initializing Elasticity Matrix");
+  // Elasticity tensor E
+  Real E_prefactor = _E0 / (1 - std::pow(_nu, 2));
+  RealEigenMatrix E{{1, _nu, 0}, {_nu, 1, 0}, {0, 0, (1 - _nu) / 2}};
+  _E = E_prefactor * E;
+}
+
+void
+StressResponseBase::initializeKeMat()
+{
+  TIME_SECTION("initializeKeMat", 6, "Initializing Element Stiffness Matrix");
+  /// Element stiffness matrix
+  _KE.resize(8, 8);
+  _KE.setZero();
+
+  std::vector<std::pair<Real, Real>> qps{
+      std::make_pair(-1, -1), std::make_pair(1, -1), std::make_pair(-1, 1), std::make_pair(1, 1)};
+  for (int i = 0; i < 4; i++)
+  {
+    Real qps_prefactor = 1 / std::sqrt(3);
+    qps[i].first *= qps_prefactor;
+    qps[i].second *= qps_prefactor;
+  }
+
+  // Jacobi-matrix for unit thickness
+  int t = 1;
+  std::vector<std::vector<Real>> J{{_l_el / 2, 0}, {0, _l_el / 2}};
+  Real det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+  for (int qp = 0; qp < 4; qp++)
+  {
+    Real xi = qps[qp].first;
+    Real eta = qps[qp].second;
+    RealEigenMatrix B = computeBMat(xi, eta);
+    Real K_qp_prefactor = t * det_J;
+    RealEigenMatrix K_qp = K_qp_prefactor * B * _E * B.transpose();
+    _KE += K_qp;
+  }
 }
 
 void
@@ -196,138 +318,6 @@ StressResponseBase::gatherElementData()
 }
 
 void
-StressResponseBase::initializeDofVariables()
-{
-  TIME_SECTION("initializeDofVariables", 6, "Initializing DOF Variables");
-  // all DOFs
-  _n_dofs = _sys.system().n_dofs();
-  _n_local_dofs = _sys.system().n_local_dofs();
-  _all_dofs.resize(_n_dofs);
-  std::iota(std::begin(_all_dofs), std::end(_all_dofs), 0);
-
-  // fixed DOFS
-  NonlinearSystemBase & sys = static_cast<NonlinearSystemBase &>(_sys);
-  auto & nbc_warehouse = sys.getNodalBCWarehouse();
-  if (nbc_warehouse.hasActiveObjects())
-  {
-    for (const auto & bnode : *_mesh.getBoundaryNodeRange())
-    {
-      BoundaryID boundary_id = bnode->_bnd_id;
-      Node * node = bnode->_node;
-
-      if (!nbc_warehouse.hasActiveBoundaryObjects(boundary_id) ||
-          node->processor_id() != processor_id())
-        continue;
-
-      for (const auto & bc : nbc_warehouse.getActiveBoundaryObjects(boundary_id))
-        if (bc->shouldApply())
-          for (unsigned int c = 0; c < bc->variable().count(); ++c)
-          {
-            _fixed_dofs.push_back(node->dof_number(sys.number(), bc->variable().number() + c, 0));
-          }
-    }
-  }
-
-  // std::vector<dof_id_type> test;
-  // auto & cons_warehouse = sys.getConstraintWarehouse();
-  // if (cons_warehouse.hasActiveNodalConstraints())
-  // {
-  //   const auto & ncs = cons_warehouse.getActiveNodalConstraints();
-  //   for (const auto & nc : ncs)
-  //   {
-  //     std::vector<dof_id_type> & secondary_node_ids = nc->getSecondaryNodeId();
-  //     std::vector<dof_id_type> & primary_node_ids = nc->getPrimaryNodeId();
-  //     test.insert(test.begin(), secondary_node_ids.begin(), secondary_node_ids.end());
-  //   }
-  //   for (auto & out : test)
-  //     std::cout << out << ", ";
-  //   std::cout << std::endl;
-  //   // std::sort(test.begin(), test.end());
-  //   test.erase(unique(test.begin(), test.end()), test.end());
-  //   for (auto & out : test)
-  //     std::cout << out << ", ";
-  //   std::cout << std::endl;
-  //   // _fixed_dofs.insert(_fixed_dofs.begin(), test.begin(), test.end());
-  // }
-
-  // Elemen to DOF map
-  _elem_to_dof_map.resize(_n_el);
-  for (const auto & sub_id : blockIDs())
-    for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
-    {
-      std::vector<dof_id_type> dofs;
-      for (auto & node : elem->node_ref_range())
-      {
-        Node * node_ptr = &node;
-        // _dof_map.dof_indices(node_ptr, dofs);
-        // NOTE: 2D only
-        dofs.push_back(node.dof_number(_sys.number(), 0, 0));
-        dofs.push_back(node.dof_number(_sys.number(), 1, 0));
-      }
-      dof_id_type elem_id = elem->id();
-      _elem_to_dof_map[elem_id] = dofs;
-    }
-}
-
-RealEigenMatrix
-StressResponseBase::getBMat(Real xi, Real eta)
-{
-  Real B_prefactor = 1.0 / (2 * _l_el);
-  RealEigenMatrix B{{eta - 1, 0, xi - 1},
-                    {0, xi - 1, eta - 1},
-                    {1 - eta, 0, -1 - xi},
-                    {0, -1 - xi, 1 - eta},
-                    {1 + eta, 0, 1 + xi},
-                    {0, 1 + xi, 1 + eta},
-                    {-1 - eta, 0, 1 - xi},
-                    {0, 1 - xi, -1 - eta}};
-  return B_prefactor * B;
-}
-
-void
-StressResponseBase::initializeEMat()
-{
-  TIME_SECTION("initializeEMat", 6, "Initializing Elasticity Matrix");
-  // Elasticity tensor E
-  Real E_prefactor = _E0 / (1 - std::pow(_nu, 2));
-  RealEigenMatrix E{{1, _nu, 0}, {_nu, 1, 0}, {0, 0, (1 - _nu) / 2}};
-  _E = E_prefactor * E;
-}
-
-void
-StressResponseBase::initializeKeMat()
-{
-  TIME_SECTION("initializeKeMat", 6, "Initializing Element Stiffness Matrix");
-  /// Element stiffness matrix
-  _KE.resize(8, 8);
-  _KE.setZero();
-
-  std::vector<std::pair<Real, Real>> qps{
-      std::make_pair(-1, -1), std::make_pair(1, -1), std::make_pair(-1, 1), std::make_pair(1, 1)};
-  for (int i = 0; i < 4; i++)
-  {
-    Real qps_prefactor = 1 / std::sqrt(3);
-    qps[i].first *= qps_prefactor;
-    qps[i].second *= qps_prefactor;
-  }
-
-  // Jacobi-matrix for unit thickness
-  int t = 1;
-  std::vector<std::vector<Real>> J{{_l_el / 2, 0}, {0, _l_el / 2}};
-  Real det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0];
-
-  for (int qp = 0; qp < 4; qp++)
-  {
-    Real xi = qps[qp].first;
-    Real eta = qps[qp].second;
-    RealEigenMatrix B = getBMat(xi, eta);
-    Real K_qp_prefactor = t * det_J;
-    RealEigenMatrix K_qp = K_qp_prefactor * B * _E * B.transpose();
-    _KE += K_qp;
-  }
-}
-
-void
 StressResponseBase::initializeUVec()
 {
   TIME_SECTION("initializeUVec", 6, "Initializing Global Displacement Vector");
@@ -343,13 +333,29 @@ StressResponseBase::initializeUVec()
   }
 }
 
-RealEigenVector
-StressResponseBase::getLambda(std::vector<Real> gamma)
+void
+StressResponseBase::scaleConstraint()
 {
-  TIME_SECTION("getLambda", 4, "Computing Lambda");
+  std::cout << "old limit = " << _scaled_limit;
+  if (_scaling && _t_step % 10 == 0)
+  {
+    auto test = _interpolated_micro_vonmises.maxCoeff();
+    _scaled_limit =
+        std::max(_limit, _limit / _interpolated_micro_vonmises.maxCoeff() * (_value + 1) * _limit);
+  }
+  else if (!_scaling)
+    _scaled_limit = _limit;
+  std::cout << ". new limit = " << _scaled_limit << std::endl;
+}
+
+RealEigenVector
+StressResponseBase::computeLambda(std::vector<Real> gamma)
+{
+  TIME_SECTION("computeLambda", 4, "Computing Lambda");
   // vector lambda
   auto & solver = *static_cast<ImplicitSystem &>(_sys.system()).get_linear_solver();
-  SparseMatrix<Number> & K = static_cast<ImplicitSystem &>(_sys.system()).get_system_matrix();
+  auto & jacobian = _sys.getMatrix(_subproblem.getMatrixTagID(_system_matrix_name));
+
   PetscVector<Number> gamma_red(_communicator, _n_dofs, _n_local_dofs),
       lambda_petsc(_communicator, _n_dofs, _n_local_dofs);
   gamma_red = gamma;
@@ -361,15 +367,15 @@ StressResponseBase::getLambda(std::vector<Real> gamma)
                zeros.data(),
                INSERT_VALUES);
 
-  // auto K_petsc = dynamic_cast<PetscMatrix<Number> *>(&K);
-  // MatZeroRowsColumns(K_petsc->mat(),
-  //                    cast_int<PetscInt>(_fixed_dofs.size()),
-  //                    numeric_petsc_cast(_fixed_dofs.data()),
-  //                    1.0,
-  //                    NULL,
-  //                    NULL);
+  auto jacobian_petsc = dynamic_cast<PetscMatrix<Number> *>(&jacobian);
+  MatZeroRowsColumns(jacobian_petsc->mat(),
+                     cast_int<PetscInt>(_fixed_dofs.size()),
+                     numeric_petsc_cast(_fixed_dofs.data()),
+                     1.0,
+                     NULL,
+                     NULL);
 
-  solver.solve(K, K, lambda_petsc, gamma_red, 1e-8, 100);
+  solver.solve(jacobian, jacobian, lambda_petsc, gamma_red, 1e-8, 100);
 
   std::vector<Real> lambda(_n_dofs);
   lambda_petsc.localize(lambda);
@@ -380,9 +386,9 @@ StressResponseBase::getLambda(std::vector<Real> gamma)
 }
 
 RealEigenVector
-StressResponseBase::getT2(RealEigenVector lambda)
+StressResponseBase::computeT2(RealEigenVector lambda)
 {
-  TIME_SECTION("getT2", 4, "Computing T2");
+  TIME_SECTION("computeT2", 4, "Computing T2");
   // final sensitivity
   std::vector<Real> T2(_n_el);
   for (auto && [id, elem_data] : _elem_data_map)
@@ -396,4 +402,25 @@ StressResponseBase::getT2(RealEigenVector lambda)
   _communicator.sum(T2);
   RealEigenVector T2_eigen = Eigen::Map<RealEigenVector>(T2.data(), T2.size());
   return T2_eigen;
+}
+
+RealEigenMatrix
+StressResponseBase::computeBMat(Real xi, Real eta)
+{
+  Real B_prefactor = 1.0 / (2 * _l_el);
+  RealEigenMatrix B{{eta - 1, 0, xi - 1},
+                    {0, xi - 1, eta - 1},
+                    {1 - eta, 0, -1 - xi},
+                    {0, -1 - xi, 1 - eta},
+                    {1 + eta, 0, 1 + xi},
+                    {0, 1 + xi, 1 + eta},
+                    {-1 - eta, 0, 1 - xi},
+                    {0, 1 - xi, -1 - eta}};
+  return B_prefactor * B;
+}
+
+RealEigenMatrix
+StressResponseBase::getStress()
+{
+  return _stress;
 }

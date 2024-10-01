@@ -50,10 +50,17 @@ protected:
   MooseVariable * _stress_yy;
   /// Stress_xy variable
   MooseVariable * _stress_xy;
+  /// Interpolated microscopic centroid von Mises stress variable
+  MooseWritableVariable * _interpolated_micro_vonmises_stress;
+  /// Microscopic centoid vonmises stress variable (not interpolated)
+  MooseWritableVariable * _micro_vonmises_stress;
   /// Voigt stress vector for every Element
   RealEigenMatrix _stress;
-  /// Elemental Von Mises stress vector
-  RealEigenVector _vonmises;
+  /// Interpolated microscopic centroid von Mises stress
+  RealEigenVector _interpolated_micro_vonmises;
+  RealEigenVector _interpolated_micro_vonmises_old;
+  /// Microscopic centoid vonmises stress (not interpolated)
+  RealEigenVector _micro_vonmises;
   /// Displacement variable names
   const std::vector<VariableName> _displacement_names;
   /// disp_x variable
@@ -160,7 +167,7 @@ protected:
   /**
    * Returns B-matrix at coordinates xi,eta for regular element
    */
-  RealEigenMatrix getBMat(Real xi, Real eta);
+  RealEigenMatrix computeBMat(Real xi, Real eta);
 
   /**
    * Initializes _KE
@@ -175,10 +182,10 @@ protected:
   /**
    * Copmutes lambda from system matrix and gamma_red
    */
-  RealEigenVector getLambda(std::vector<Real> gamma);
+  RealEigenVector computeLambda(std::vector<Real> gamma);
 
   /**
    * Copmutes T2 from lambda
    */
-  RealEigenVector getT2(RealEigenVector lambda);
+  RealEigenVector computeT2(RealEigenVector lambda);
 };
