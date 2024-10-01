@@ -28,6 +28,12 @@ enum class FilterType
   HEAVISIDE
 };
 
+enum class RadiusType
+{
+  ABSOLUTE,
+  RELATIVE
+};
+
 class FilterBase : public ElementUserObject
 {
 public:
@@ -47,6 +53,12 @@ public:
    */
   static MooseEnum getFilterEnum();
 
+    /**
+   * Get radius type
+   * @return enum
+   */
+  static MooseEnum getRadiusEnum();
+
   /**
    * Define parameters used by multiple filter objects
    * @return InputParameters object populated with common parameters
@@ -56,6 +68,8 @@ public:
 protected:
   /// Filter type
   const FilterType _filter_type;
+  /// Radius type
+  const RadiusType _radius_type;
   /// The system mesh
   const MooseMesh & _mesh;
   /// Name of the mesh generator to get MeshMetaData from

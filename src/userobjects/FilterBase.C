@@ -13,15 +13,39 @@
 
 #include "sum.h"
 
+MooseEnum
+FilterBase::getFilterEnum()
+{
+  auto filter = MooseEnum("none sensitivity density heaviside", "none");
+
+  filter.addDocumentation("none", "No filter.");
+  filter.addDocumentation("sensitivity", "Sensitivity filter.");
+  filter.addDocumentation("density", "Density filter.");
+  filter.addDocumentation("heaviside", "Heaviside projection.");
+  return filter;
+}
+
+MooseEnum
+FilterBase::getRadiusEnum()
+{
+  auto radius = MooseEnum("absolute relative", "relative");
+
+  radius.addDocumentation("absolute", "Absolute filter radius.");
+  radius.addDocumentation("relative", "Relative filter radius (times element size).");
+  return radius;
+}
+
 registerMooseObject("OptimizationApp", FilterBase);
 
 InputParameters
 FilterBase::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
-  params += FilterBase::commonParameters();
   params.addClassDescription("Provides basic filter functionalities.");
-  params.addParam<Real>("radius", "Cut-off radius for the averaging");
+  params.addParam<MooseEnum>("filter_type", FilterBase::getFilterEnum(), "The filter type");
+  params.addParam<Real>("radius", "Cut-off radius for the averaging.");
+  params.addParam<MooseEnum>(
+      "radius_type", FilterBase::getRadiusEnum(), "Absolute or relative radius.");
   params.addParam<MeshGeneratorName>(
       "mesh_generator",
       "Name of the mesh generator to be used to retrieve control drums information.");
@@ -34,6 +58,7 @@ FilterBase::validParams()
 FilterBase::FilterBase(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _filter_type(getParam<MooseEnum>("filter_type").getEnum<FilterType>()),
+    _radius_type(getParam<MooseEnum>("radius_type").getEnum<RadiusType>()),
     _mesh(_subproblem.mesh()),
     _n_el(_mesh.getMesh().n_elem())
 {
@@ -97,28 +122,38 @@ void
 FilterBase::prepareFilter()
 {
   TIME_SECTION("prepareFilter", 3, "Preparing Filter");
-  // NOTE: Only eligibale for elemente size of 1 mm
-  int upp_r = ceil(_radius);
-  int size = _n_el * std::pow((2 * (upp_r - 1) + 1), 2);
+  Real rel_radius, abs_radius;
+  if (_radius_type == RadiusType::RELATIVE)
+  {
+    rel_radius = _radius;
+    abs_radius = _radius * _l_el;
+  }
+  else if (_radius_type == RadiusType::ABSOLUTE)
+  {
+    rel_radius = _radius / _l_el;
+    abs_radius = _radius;
+  }
+  int search = ceil(rel_radius);
+  int size = _n_el * std::pow((2 * (search - 1) + 1), 2);
   std::vector<int> iH(size, 1);
   std::vector<int> jH(size, 1);
   std::vector<Real> sH(size, 0);
   int counter = 0;
-  for (unsigned int i = 0; i < _ny; i++)
+  for (int i = 0; i < _ny; i++)
   {
-    for (unsigned int j = 0; j < _nx; j++)
+    for (int j = 0; j < _nx; j++)
     {
       int e1 = i * _nx + j;
-      for (int k = std::max<int>(i - (upp_r - 1), 0); k < std::min<int>(i + upp_r, _ny); k++)
+      for (int k = std::max<int>(i - (search - 1), 0); k < std::min<int>(i + search, _ny); k++)
       {
-        for (int l = std::max<int>(j - (upp_r - 1), 0); l < std::min<int>(j + upp_r, _nx); l++)
+        for (int l = std::max<int>(j - (search - 1), 0); l < std::min<int>(j + search, _nx); l++)
         {
           int e2 = k * _nx + l;
           iH[counter] = e1;
           jH[counter] = e2;
-          sH[counter] = std::max<double>(0,
-                                         _radius - std::sqrt(std::pow(std::abs<int>(i - k), 2) +
-                                                             std::pow(std::abs<int>(j - l), 2)));
+          sH[counter] = std::max<double>(
+              0,
+              abs_radius - std::sqrt(std::pow(_l_el * (i - k), 2) + std::pow(_l_el * (j - l), 2)));
           counter++;
         }
       }
@@ -138,26 +173,4 @@ FilterBase::prepareFilter()
 
   // Fill _Hs with the column sums of _H
   igl::sum(_H, 2, _Hs);
-}
-
-MooseEnum
-FilterBase::getFilterEnum()
-{
-  auto filter = MooseEnum("none sensitivity density heaviside", "none");
-
-  filter.addDocumentation("none", "No filter.");
-  filter.addDocumentation("sensitivity", "Sensitivity filter.");
-  filter.addDocumentation("density", "Density filter.");
-  filter.addDocumentation("heaviside", "Heaviside projection.");
-  return filter;
-}
-
-InputParameters
-FilterBase::commonParameters()
-{
-  InputParameters params = emptyInputParameters();
-
-  params.addParam<MooseEnum>("filter_type", FilterBase::getFilterEnum(), "The filter type");
-
-  return params;
 }
