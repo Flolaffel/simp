@@ -31,6 +31,7 @@ public:
 
   virtual void gatherElementData() override;
   virtual void computeStress() = 0;
+  virtual void scaleConstraint() override;
   virtual void computeValue() override {};
   virtual void computeSensitivity() override {};
 

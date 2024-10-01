@@ -28,6 +28,7 @@ public:
   virtual void threadJoin(const UserObject &) override;
 
   virtual void gatherElementData() override;
+  virtual void scaleConstraint() override {};
 
   /**
    * Computes g = sum(x)/V_lim - 1
