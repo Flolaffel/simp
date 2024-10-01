@@ -55,7 +55,6 @@ VolumeResponse::threadJoin(const UserObject & y)
 {
   TIME_SECTION("threadJoin", 3, "Joining Threads");
   const VolumeResponse & uo = static_cast<const VolumeResponse &>(y);
-  _scalar_value += uo._scalar_value;
   _elem_data_map.insert(uo._elem_data_map.begin(), uo._elem_data_map.end());
 }
 
@@ -97,9 +96,9 @@ VolumeResponse::computeValue()
     value -= 1;
   }
 
-  _value->setValues(value);
-  _value->insert(_value->sys().solution());
-  _value->sys().solution().close();
+  _scalar_value->setValues(value);
+  _scalar_value->insert(_scalar_value->sys().solution());
+  _scalar_value->sys().solution().close();
 }
 
 void

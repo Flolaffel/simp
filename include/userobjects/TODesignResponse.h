@@ -75,8 +75,10 @@ protected:
   bool _scaling;
   /// scaled limit
   Real _scaled_limit;
+  /// Value variable
+  MooseVariableScalar * _scalar_value;
   /// Value
-  MooseVariableScalar * _value;
+  Real _value;
   /// Sensitivity with respect to density
   MooseWritableVariable * _sensitivity;
   /// Physical density variable name

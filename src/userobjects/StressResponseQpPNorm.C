@@ -59,11 +59,11 @@ StressResponseQpPNorm::computeValue()
       PN += std::pow(_vonmises(id) / _limit, _P);
   }
   _communicator.sum(PN);
-  PN = std::pow(PN, 1.0 / _P) - 1;
-  _value->reinit();
-  _value->setValues(PN);
-  _value->insert(_value->sys().solution());
-  _value->sys().solution().close();
+  _value = std::pow(sum, 1.0 / _P) - 1;
+  _scalar_value->reinit();
+  _scalar_value->setValues(_value);
+  _scalar_value->insert(_scalar_value->sys().solution());
+  _scalar_value->sys().solution().close();
 }
 
 void

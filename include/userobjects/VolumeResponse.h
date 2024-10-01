@@ -50,6 +50,4 @@ private:
 
   /// Data structure to hold elemental values
   std::map<dof_id_type, ElementData> _elem_data_map;
-  /// Numeric value
-  Real _scalar_value;
 };

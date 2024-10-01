@@ -34,7 +34,7 @@ TODesignResponse::TODesignResponse(const InputParameters & parameters)
     _usage(getParam<MooseEnum>("usage").getEnum<Usage>()),
     _is_objective(_usage == Usage::OBJECTIVE),
     _is_constraint(_usage == Usage::CONSTRAINT),
-    _value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
+    _scalar_value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
     _sensitivity(&writableVariable("sensitivity")),
     _physical_density_name(getParam<VariableName>("physical_density")),
     _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name)),

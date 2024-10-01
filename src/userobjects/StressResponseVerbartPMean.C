@@ -58,11 +58,11 @@ StressResponseVerbartPMean::computeValue()
       PM += std::pow(elem_data.physical_density * (_vonmises(id) / _limit - 1) + 1, _P);
   }
   _communicator.sum(PM);
-  PM = std::pow(1.0 / _n_el * PM, 1.0 / _P) - 1;
-  _value->reinit();
-  _value->setValues(PM);
-  _value->insert(_value->sys().solution());
-  _value->sys().solution().close();
+  _value = std::pow(1.0 / _n_el * sum, 1.0 / _P) - 1;
+  _scalar_value->reinit();
+  _scalar_value->setValues(_value);
+  _scalar_value->insert(_scalar_value->sys().solution());
+  _scalar_value->sys().solution().close();
 }
 
 void
