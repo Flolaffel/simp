@@ -361,19 +361,19 @@ StressResponseBase::computeLambda(std::vector<Real> gamma)
   gamma_red = gamma;
 
   std::vector<PetscScalar> zeros(_fixed_dofs.size());
-  VecSetValues(gamma_red.vec(),
-               cast_int<PetscInt>(_fixed_dofs.size()),
-               numeric_petsc_cast(_fixed_dofs.data()),
-               zeros.data(),
-               INSERT_VALUES);
+  LIBMESH_CHKERR(VecSetValues(gamma_red.vec(),
+                              cast_int<PetscInt>(_fixed_dofs.size()),
+                              numeric_petsc_cast(_fixed_dofs.data()),
+                              zeros.data(),
+                              INSERT_VALUES));
 
   auto jacobian_petsc = dynamic_cast<PetscMatrix<Number> *>(&jacobian);
-  MatZeroRowsColumns(jacobian_petsc->mat(),
-                     cast_int<PetscInt>(_fixed_dofs.size()),
-                     numeric_petsc_cast(_fixed_dofs.data()),
-                     1.0,
-                     NULL,
-                     NULL);
+  LIBMESH_CHKERR(MatZeroRowsColumns(jacobian_petsc->mat(),
+                                    cast_int<PetscInt>(_fixed_dofs.size()),
+                                    numeric_petsc_cast(_fixed_dofs.data()),
+                                    1.0,
+                                    NULL,
+                                    NULL));
 
   solver.solve(jacobian, jacobian, lambda_petsc, gamma_red, 1e-8, 100);
 
