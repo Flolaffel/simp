@@ -45,13 +45,15 @@ StressResponseAverageSolidStress::computeValue()
       xPhys_sum += elem_data.physical_density;
   }
   _communicator.sum(xPhys_sum);
+  Real test = _interpolated_micro_vonmises.sum();
 
   if (_t_step == 1)
     _limit = _interpolated_micro_vonmises.maxCoeff();
   else if (_t_step % 10 == 0)
     _limit = _interpolated_micro_vonmises_old.maxCoeff();
 
-  _value = _interpolated_micro_vonmises.sum() / (xPhys_sum * _limit) - 1;
+  Real average_solid_stress = _interpolated_micro_vonmises.sum() / xPhys_sum;
+  _value = average_solid_stress / _limit - 1;
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());
