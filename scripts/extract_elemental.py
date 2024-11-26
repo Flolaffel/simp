@@ -22,17 +22,15 @@ for encName in encodedElementVarNames:
 
 
 # get values of element variables
-checkElemVars = [
-    "interpolated_micro_vonmises_stress",
-]
+timeSteps = [91, 92]
 
 elemVarIndex = []
 elemVars = []
-for var in checkElemVars:
+for i, var in enumerate(checkElemVars):
     var = var[:32]
     index = elementVarNames.index(var) + 1
     # get values of desired variable
-    timeStep = 500
+    timeStep = timeSteps[i]
     elemVars.append(
         file.variables["vals_elem_var" + str(index) + "eb1"][timeStep].tolist()
     )
@@ -40,7 +38,6 @@ for var in checkElemVars:
 file.close()
 
 script_path = os.path.dirname(os.path.realpath(__file__))
-
 with open(script_path + "/extract_elemental.csv", "w") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(zip(*elemVars))
