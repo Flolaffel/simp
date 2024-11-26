@@ -607,7 +607,7 @@ DensityUpdateMMA::MmaSubSolve(unsigned int m,
       }
       else
       {
-        // idk
+        mooseError("Number of constraints is equal to or larger than number of elements.");
       }
 
       std::vector<Real> dxsi(n, 0), deta(n, 0);
