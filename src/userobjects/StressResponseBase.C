@@ -125,8 +125,9 @@ StressResponseBase::initialize()
   gatherNodalData();
   gatherElementData();
   initializeUVec();
-  scaleConstraint();
+  // scaleConstraint();
   computeStress();
+  // scaleConstraint();
   computeValue();
   computeSensitivity();
 }
@@ -337,9 +338,9 @@ void
 StressResponseBase::scaleConstraint()
 {
   std::cout << "old limit = " << _scaled_limit;
-  if (_scaling && _t_step % 10 == 0)
+  // if (_scaling && _t_step % 10 == 0)
+  if (_scaling)
   {
-    auto test = _interpolated_micro_vonmises.maxCoeff();
     _scaled_limit =
         std::max(_limit, _limit / _interpolated_micro_vonmises.maxCoeff() * (_value + 1) * _limit);
   }
@@ -395,7 +396,6 @@ StressResponseBase::computeT2(RealEigenVector lambda)
   {
     RealEigenVector lambda_el = lambda(_elem_to_dof_map[id]);
     RealEigenVector u_el = _U(_elem_to_dof_map[id]);
-    RealEigenVector test = _KE * elem_data.u_el;
     Real value = lambda_el.transpose() * _KE * elem_data.u_el;
     T2[id] = -_p * std::pow(elem_data.physical_density, _p - 1) * (_E0 - _Emin) * value;
   }

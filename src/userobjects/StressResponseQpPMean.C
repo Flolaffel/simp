@@ -61,13 +61,24 @@ StressResponseQpPMean::computeValue()
   Real sum = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    if (_is_objective)
-      sum += std::pow(_interpolated_micro_vonmises(id), _P);
-    if (_is_constraint)
-      sum += std::pow(_interpolated_micro_vonmises(id) / _limit, _P);
+    sum += std::pow(_interpolated_micro_vonmises(id), _P);
   }
   _communicator.sum(sum);
-  _value = std::pow(1.0 / _n_el * sum, 1.0 / _P) - 1;
+  Real PM = std::pow(1.0 / _n_el * sum, 1.0 / _P);
+
+  if (_scaling)
+  {
+    _console << "old limit = " << _scaled_limit;
+    _scaled_limit = std::min(_limit, _limit * PM / _interpolated_micro_vonmises.maxCoeff());
+    _console << ". new limit = " << _scaled_limit << std::endl;
+  }
+  else if (!_scaling)
+    _scaled_limit = _limit;
+
+  if (_is_objective)
+    _value = PM;
+  if (_is_constraint)
+    _value = PM / _scaled_limit - 1;
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());

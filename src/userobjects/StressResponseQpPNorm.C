@@ -32,11 +32,12 @@ StressResponseQpPNorm::computeStress()
 {
   TIME_SECTION("computeStress", 3, "Computing stress at element center");
 
-  _interpolated_micro_vonmises_old = _interpolated_micro_vonmises;
+  //_interpolated_micro_vonmises_old = _interpolated_micro_vonmises;
 
   _stress.resize(_n_el, 3);
   _stress.setZero();
   _interpolated_micro_vonmises.resize(_n_el);
+  _interpolated_micro_vonmises_old = _interpolated_micro_vonmises;
   _interpolated_micro_vonmises.setZero();
   _micro_vonmises.resize(_n_el);
   _micro_vonmises.setZero();
@@ -61,13 +62,24 @@ StressResponseQpPNorm::computeValue()
   Real sum = 0;
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    if (_is_objective)
-      sum += std::pow(_interpolated_micro_vonmises(id), _P);
-    if (_is_constraint)
-      sum += std::pow(_interpolated_micro_vonmises(id) / _scaled_limit, _P);
+    sum += std::pow(_interpolated_micro_vonmises(id), _P);
   }
   _communicator.sum(sum);
-  _value = std::pow(sum, 1.0 / _P) - 1;
+  Real PN = std::pow(sum, 1.0 / _P);
+
+  if (_scaling)
+  {
+    _console << "old limit = " << _scaled_limit;
+    _scaled_limit = std::max(_limit, _limit * PN / _interpolated_micro_vonmises.maxCoeff());
+    _console << ". new limit = " << _scaled_limit << std::endl;
+  }
+  else if (!_scaling)
+    _scaled_limit = _limit;
+
+  if (_is_objective)
+    _value = PN;
+  if (_is_constraint)
+    _value = PN / _scaled_limit - 1;
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());
@@ -78,6 +90,11 @@ void
 StressResponseQpPNorm::computeSensitivity()
 {
   TIME_SECTION("computeSensitivity", 3, "Computing Stress Sensitivity");
+
+  // eliminate limit contribution when used as objective function sensitivity
+  if (_is_objective)
+    _scaled_limit = 1;
+
   /// dsigma^PN/dsigma_VMi
   std::vector<Real> dPNdVM_vec(_n_el);
   Real sum = 0;
