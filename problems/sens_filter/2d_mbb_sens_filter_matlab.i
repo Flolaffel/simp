@@ -5,6 +5,7 @@ vol_frac = 0.5
 filter_radius = 1.5
 E0 = 1
 Emin = 1e-9
+nu = 0.3
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -60,6 +61,14 @@ Emin = 1e-9
     initial_condition = ${E0}
   []
   [dc]
+    family = MONOMIAL
+    order = CONSTANT
+  []
+  [ct]
+    family = SCALAR
+    order = FIRST
+  []
+  [dct]
     family = MONOMIAL
     order = CONSTANT
   []
@@ -144,7 +153,7 @@ Emin = 1e-9
   [poissons_ratio]
     type = GenericConstantMaterial
     prop_names = poissons_ratio
-    prop_values = 0.3
+    prop_values = ${nu}
   []
   [stress]
     type = ComputeLinearElasticStress
