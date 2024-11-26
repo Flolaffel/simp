@@ -320,6 +320,7 @@ start_dens = 1
     system_matrix = K
     interpolated_micro_vonmises_stress = interpolated_micro_vonmises_stress
     micro_vonmises_stress = centroid_micro_vonmises_stress
+    scaling = true
   []
   [vol_sens]
     type = VolumeResponse
