@@ -6,9 +6,9 @@ limit = 0.06
 stress = []
 with open("scripts/extract_elemental.csv", "r") as file:
     content = csv.reader(file)
-    for lines in content:
-        for line in lines:
-            stress.append(float(line))
+    for line in content:
+        for element in line:
+            stress.append(float(element))
 
 pn = 0
 pn_rel = 0
