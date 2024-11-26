@@ -2,13 +2,17 @@ nx = 150
 ny = 75
 xmax = 100
 ymax = 50
-l_el = ${fparse xmax/nx}
+l_el = '${fparse xmax/nx}'
 p = 3
 filter_radius = 2.5
 E0 = 1
 Emin = 1e-9
 nu = 0.3
 start_dens = 1
+
+[Problem]
+  extra_tag_matrices = K
+[]
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -124,12 +128,25 @@ start_dens = 1
   []
 []
 
-[Modules/TensorMechanics/Master]
-  [all]
-    strain = SMALL
-    add_variables = true
-    incremental = false
-    generate_output = "stress_xx stress_yy stress_xy vonmises_stress"
+[Variables]
+  [disp_x]
+  []
+  [disp_y]
+  []
+[]
+
+[Kernels]
+  [stress_x]
+    type = StressDivergenceTensors
+    component = 0
+    variable = disp_x
+    extra_matrix_tags = K
+  []
+  [stress_y]
+    type = StressDivergenceTensors
+    component = 1
+    variable = disp_y
+    extra_matrix_tags = K
   []
 []
 
@@ -179,6 +196,9 @@ start_dens = 1
   [stress]
     type = ComputeLinearElasticStress
   []
+  [compute_strain]
+    type = ComputeSmallStrain
+  []
   [dc]
     type = AnalyticComplianceSensitivity
     physical_density = rhoPhys
@@ -202,6 +222,10 @@ start_dens = 1
 []
 
 [AuxVariables]
+  [vonmises]
+    order = CONSTANT
+    family = MONOMIAL
+  []
   [micro_stress_xx]
     order = CONSTANT
     family = MONOMIAL
@@ -221,6 +245,12 @@ start_dens = 1
 []
 
 [AuxKernels]
+  [vonmises]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = vonmises
+    scalar_type = VonMisesStress
+  []
   [micro_stress_xx]
     type = RankTwoAux
     rank_two_tensor = micro_stress
@@ -286,18 +316,46 @@ start_dens = 1
   [stress_sens]
     type = StressResponseEpsPNorm
     usage = constraint
-    limit = 1
+    limit = 0.5
     value = PN
     sensitivity = dPN
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
     mesh_generator = MeshGenerator
+    system_matrix = K
   []
   [vol_sens]
     type = VolumeResponse
     usage = objective
     value = V
     sensitivity = dV
+  []
+  [opt_conv]
+    type = Terminator
+    expression = 'change < 0.0075 & change != 0'
+    execute_on = TIMESTEP_END
+    execution_order_group = 5
+  []
+[]
+
+[Postprocessors]
+  [change]
+    type = VectorPostprocessorComponent
+    vectorpostprocessor = max_abs_diff
+    vector_name = Difference
+    index = 0
+    execute_on = 'initial timestep_end'
+  []
+[]
+
+[VectorPostprocessors]
+  [max_abs_diff]
+    type = ElementVariablesDifferenceMax
+    compare_a = rho
+    compare_b = rho_old1
+    furthest_from_zero = true
+    contains_complete_history = true
+    execution_order_group = 10
   []
 []
 

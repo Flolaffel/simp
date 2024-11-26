@@ -7,6 +7,10 @@ Emin = 1e-9
 nu = 0.3
 start_dens = 1
 
+[Problem]
+  extra_tag_matrices = jacobian
+[]
+
 [GlobalParams]
   displacements = 'disp_x disp_y'
   design_density = rho
@@ -121,12 +125,25 @@ start_dens = 1
   []
 []
 
-[Modules/TensorMechanics/Master]
-  [all]
-    strain = SMALL
-    add_variables = true
-    incremental = false
-    generate_output = "stress_xx stress_yy stress_xy vonmises_stress"
+[Variables]
+  [disp_x]
+  []
+  [disp_y]
+  []
+[]
+
+[Kernels]
+  [stress_x]
+    type = StressDivergenceTensors
+    component = 0
+    variable = disp_x
+    extra_matrix_tags = jacobian
+  []
+  [stress_y]
+    type = StressDivergenceTensors
+    component = 1
+    variable = disp_y
+    extra_matrix_tags = jacobian
   []
 []
 
@@ -175,6 +192,9 @@ start_dens = 1
   []
   [stress]
     type = ComputeLinearElasticStress
+  []
+  [compute_strain]
+    type = ComputeSmallStrain
   []
   [dc]
     type = AnalyticComplianceSensitivity
@@ -289,6 +309,7 @@ start_dens = 1
     stresses = 'micro_vonmises_stress micro_stress_xx micro_stress_xy micro_stress_yy'
     poissons_ratio = ${nu}
     mesh_generator = MeshGenerator
+    system_matrix = jacobian
   []
   [vol_sens]
     type = VolumeResponse
