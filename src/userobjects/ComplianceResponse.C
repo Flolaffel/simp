@@ -345,7 +345,10 @@ ComplianceResponse::computeSensitivity()
   for (auto && [id, elem_data] : _elem_data_map)
   {
     RealEigenVector u_el = _U(_elem_to_dof_map[id]);
-    elem_data.compliance_sensitivity = 1 / (_l_el * _l_el * _limit) * -_p *
+    // elem_data.compliance_sensitivity = 1 / (_l_el * _l_el * _limit) * -_p *
+    //                                    std::pow(elem_data.physical_density, _p - 1) *
+    //                                    (_E0 - _Emin) * u_el.transpose() * _KE * u_el;
+    elem_data.compliance_sensitivity = 1 / _limit * -_p *
                                        std::pow(elem_data.physical_density, _p - 1) *
                                        (_E0 - _Emin) * u_el.transpose() * _KE * u_el;
   }
