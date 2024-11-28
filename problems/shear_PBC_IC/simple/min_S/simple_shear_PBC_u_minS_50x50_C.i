@@ -8,7 +8,7 @@ E0 = 1
 Emin = 1e-9
 nu = 0.3
 vol_frac = 0.5
-c_limit = 0.05
+c_limit = 0.2
 
 [Problem]
   extra_tag_matrices = jacobian
