@@ -462,7 +462,7 @@ nu = 0.3
   nl_abs_tol = 1e-6
   l_abs_tol = 1e-6
   dt = 1.0
-  num_steps = 500
+  num_steps = 2000
 
   abort_on_solve_fail = true
 []
