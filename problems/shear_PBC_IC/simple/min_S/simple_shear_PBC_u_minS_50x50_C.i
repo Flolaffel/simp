@@ -359,8 +359,8 @@ c_limit = 0.05
   [update]
     type = DensityUpdateMMA
     objective_function_sensitivity = dPM
-    constraint_values = 'c'
-    constraint_sensitivities = 'dc'
+    constraint_values = 'ct'
+    constraint_sensitivities = 'dct'
     design_density = rho
     old_design_density1 = rho_old1
     old_design_density2 = rho_old2
