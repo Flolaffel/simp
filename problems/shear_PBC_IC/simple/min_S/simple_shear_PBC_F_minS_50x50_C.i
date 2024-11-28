@@ -395,7 +395,7 @@ c_limit = 100
     system_matrix = jacobian
     interpolated_micro_vonmises_stress = interpolated_micro_vonmises_stress
     micro_vonmises_stress = centroid_micro_vonmises_stress
-    P = 12
+    P = 100
     #scaling = true
   []
   [compliance_sens]
