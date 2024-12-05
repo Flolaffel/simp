@@ -123,6 +123,9 @@ protected:
   /// Move limit
   Real _move_limit;
 
+  /// Minimum design density value
+  Real _x_min;
+
   /**
    * Performs the MMA setup
    */

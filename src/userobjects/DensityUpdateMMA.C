@@ -49,6 +49,7 @@ DensityUpdateMMA::validParams()
                        "Column vector with the upper asymptotes from the previous "
                        "iteration (provided that iter>1).");
   params.addParam<Real>("move_limit", 0.5, "Move limit.");
+  params.addParam<Real>("minimum_value", 0, "Minimum value the design density can take.");
   params.set<int>("execution_order_group") = 2;
   return params;
 }
@@ -66,7 +67,8 @@ DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
     _constraint_sensitivity_names(getParam<std::vector<VariableName>>("constraint_sensitivities")),
     _lower_asymptotes(&writableVariable("mma_lower_asymptotes")),
     _upper_asymptotes(&writableVariable("mma_upper_asymptotes")),
-    _move_limit(getParam<Real>("move_limit"))
+    _move_limit(getParam<Real>("move_limit")),
+    _x_min(getParam<Real>("minimum_value"))
 {
   if (!dynamic_cast<MooseVariableFE<Real> *>(_design_density))
     paramError("design_density", "Design density must be a finite element variable");
@@ -370,7 +372,7 @@ DensityUpdateMMA::performMmaLoop()
   for (auto && [id, elem_data] : _elem_data_map)
   {
     // Update the element data values
-    elem_data.new_design_density = new_density[id];
+    elem_data.new_design_density = std::max(_x_min, new_density[id]);
     elem_data.new_lower = low[id];
     elem_data.new_upper = upp[id];
   }
