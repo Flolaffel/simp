@@ -16,6 +16,13 @@
  * Element user object that performs SIMP optimization using the Method of Moving Asymptotes (MMA)
  * Use after Design Responses and Sensitivity Filter
  */
+
+enum class ObjectiveType
+{
+  MIN,
+  MAX
+};
+
 class DensityUpdateMMA : public ElementUserObject
 {
 public:
@@ -29,7 +36,15 @@ public:
   virtual void finalize() override {};
   virtual void threadJoin(const UserObject &) override {};
 
+  /**
+   * Get objective type
+   * @return enum
+   */
+  static MooseEnum getObjectiveEnum();
+
 protected:
+  /// Objective type
+  const ObjectiveType _objective_type;
   /// Number of elements
   unsigned int _n_el;
   /// The pseudo-density variable

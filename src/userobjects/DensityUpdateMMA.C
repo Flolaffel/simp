@@ -14,12 +14,25 @@
 
 registerMooseObject("OptimizationApp", DensityUpdateMMA);
 
+MooseEnum
+DensityUpdateMMA::getObjectiveEnum()
+{
+  auto objective = MooseEnum("min max", "min");
+
+  objective.addDocumentation("min", "Minimize the objective function.");
+  objective.addDocumentation("max", "Maximize the objective function.");
+  return objective;
+}
+
 InputParameters
 DensityUpdateMMA::validParams()
 {
   InputParameters params = ElementUserObject::validParams();
   params.addClassDescription("Computes updated densities based on objective function and "
                              "constraint sensitivities using MMA.");
+  params.addParam<MooseEnum>("objective",
+                             DensityUpdateMMA::getObjectiveEnum(),
+                             "Whether to maximize or minimize the objective of the optimization.");
   params.addRequiredCoupledVar("design_density", "Design density variable name.");
   params.addCoupledVar("old_design_density1", "Design density one iteration ago variable name.");
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
@@ -42,6 +55,7 @@ DensityUpdateMMA::validParams()
 
 DensityUpdateMMA::DensityUpdateMMA(const InputParameters & parameters)
   : ElementUserObject(parameters),
+    _objective_type(getParam<MooseEnum>("objective").getEnum<ObjectiveType>()),
     _n_el(_mesh.getMesh().n_elem()),
     _design_density(&writableVariable("design_density")),
     _old_design_density1(&writableVariable("old_design_density1")),
@@ -120,13 +134,17 @@ DensityUpdateMMA::gatherElementData()
         i++;
       }
 
+      int sens_sign = 1;
+      if (_objective_type == ObjectiveType::MAX)
+        sens_sign = -1;
+
       ElementData data;
       data = ElementData(
           dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
           dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
           dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
-          dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
-              ->getElementalValue(elem),
+          sens_sign * dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
+                          ->getElementalValue(elem),
           con_sens,
           dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
           dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
