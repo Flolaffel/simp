@@ -72,7 +72,6 @@ protected:
   /// Column vector with the upper asymptotes from the previous iteration (provided that iter>1)
   MooseWritableVariable * _upper_asymptotes;
 
-private:
   struct ElementData
   {
     Real current_design_density;
@@ -116,7 +115,7 @@ private:
   /**
    * Gathers element data
    */
-  void gatherElementData();
+  virtual void gatherElementData();
 
   /// Data structure to hold old element data
   std::map<dof_id_type, ElementData> _elem_data_map;
@@ -127,7 +126,7 @@ private:
   /**
    * Performs the MMA setup
    */
-  void performMmaLoop();
+  virtual void performMmaLoop();
 
   /**
    * Solves MMA subproblem with primal-dual Newton method

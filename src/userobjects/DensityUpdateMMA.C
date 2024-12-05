@@ -38,10 +38,10 @@ DensityUpdateMMA::validParams()
   params.addCoupledVar("old_design_density2", "Design density two iterations ago variable name.");
   params.addRequiredParam<VariableName>("objective_function_sensitivity",
                                         "Name of the objective function sensitivity variable.");
-  params.addParam<std::vector<VariableName>>("constraint_values",
-                                             "Constraint value variable names");
-  params.addParam<std::vector<VariableName>>("constraint_sensitivities",
-                                             "Constraint sensitivity variable names.");
+  params.addParam<std::vector<VariableName>>(
+      "constraint_values", {}, "Constraint value variable names");
+  params.addParam<std::vector<VariableName>>(
+      "constraint_sensitivities", {}, "Constraint sensitivity variable names.");
   params.addCoupledVar("mma_lower_asymptotes",
                        "Column vector with the lower asymptotes from the previous "
                        "iteration (provided that iter>1).");
