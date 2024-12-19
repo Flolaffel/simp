@@ -28,52 +28,6 @@ DensityUpdateUnconstrainedMMA::DensityUpdateUnconstrainedMMA(const InputParamete
 {
 }
 
-// void
-// DensityUpdateUnconstrainedMMA::gatherElementData()
-// {
-//   TIME_SECTION("gatherElementData", 3, "Gathering Element Data");
-//   _elem_data_map.clear();
-
-//   for (const auto & sub_id : blockIDs())
-//     for (const auto & elem : _mesh.getMesh().active_local_subdomain_elements_ptr_range(sub_id))
-//     {
-//       dof_id_type elem_id = elem->id();
-
-//       ElementData data;
-
-//       if (_objective_type == ObjectiveType::MIN)
-//         data = ElementData(
-//             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
-//             dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
-//                 ->getElementalValue(elem),
-//             {},
-//             dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
-//             elem->volume(),
-//             0,
-//             0,
-//             0);
-//       else if (_objective_type == ObjectiveType::MAX)
-//         data = ElementData(
-//             dynamic_cast<MooseVariableFE<Real> *>(_design_density)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density1)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_old_design_density2)->getElementalValue(elem),
-//             -dynamic_cast<const MooseVariableFE<Real> *>(_objective_sensitivity)
-//                  ->getElementalValue(elem),
-//             {},
-//             dynamic_cast<MooseVariableFE<Real> *>(_lower_asymptotes)->getElementalValue(elem),
-//             dynamic_cast<MooseVariableFE<Real> *>(_upper_asymptotes)->getElementalValue(elem),
-//             elem->volume(),
-//             0,
-//             0,
-//             0);
-
-//       _elem_data_map[elem_id] = data;
-//     }
-// }
-
 void
 DensityUpdateUnconstrainedMMA::performMmaLoop()
 {
@@ -86,9 +40,6 @@ DensityUpdateUnconstrainedMMA::performMmaLoop()
   std::vector<Real> xval, xold1, xold2, df0dx, low, upp;
   std::vector<std::pair<dof_id_type, Real>> comm_xval, comm_df0dx, comm_xold1, comm_xold2, comm_low,
       comm_upp;
-
-  // Scalar constants
-  Real a0 = 1;
 
   // Loop over all elements to populate the vectors
   for (auto && [id, elem_data] : _elem_data_map)
@@ -147,7 +98,6 @@ DensityUpdateUnconstrainedMMA::performMmaLoop()
 
   /// MMA
   // NOTE: could be parametrized if needed
-  Real epsimin = 0.0000001;
   Real raa0 = 0.00001;
   Real move = _move_limit;
   Real albefa = 0.1;

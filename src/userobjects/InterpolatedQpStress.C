@@ -147,8 +147,6 @@ InterpolatedQpStress::initializeDofVariables()
       std::vector<dof_id_type> dofs;
       for (auto & node : elem->node_ref_range())
       {
-        Node * node_ptr = &node;
-        // _dof_map.dof_indices(node_ptr, dofs);
         // NOTE: 2D only
         dofs.push_back(node.dof_number(_sys.number(), 0, 0));
         dofs.push_back(node.dof_number(_sys.number(), 1, 0));
