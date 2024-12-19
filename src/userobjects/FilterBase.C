@@ -139,9 +139,9 @@ FilterBase::prepareFilter()
   std::vector<int> jH(size, 1);
   std::vector<Real> sH(size, 0);
   int counter = 0;
-  for (int i = 0; i < _ny; i++)
+  for (unsigned int i = 0; i < _ny; i++)
   {
-    for (int j = 0; j < _nx; j++)
+    for (unsigned int j = 0; j < _nx; j++)
     {
       int e1 = i * _nx + j;
       for (int k = std::max<int>(i - (search - 1), 0); k < std::min<int>(i + search, _ny); k++)
