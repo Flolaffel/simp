@@ -91,9 +91,10 @@ VolumeResponse::computeValue()
     value /= _n_el;
   else if (_is_constraint)
   {
-    // g: V_rel / V_lim - 1 <= 0
+    // g: V_rel / V_lim - 1 <= 0 or -(V_rel / V_lim - 1) >= 0
     value /= _limit * _n_el;
     value -= 1;
+    value *= _con_sign;
   }
 
   _scalar_value->setValues(value);
@@ -110,6 +111,6 @@ VolumeResponse::computeSensitivity()
     if (_is_objective)
       elem_data.new_volume_sensitivity = 1.0 / _n_el;
     else if (_is_constraint)
-      elem_data.new_volume_sensitivity = 1.0 / (_limit * _n_el);
+      elem_data.new_volume_sensitivity = _con_sign * 1.0 / (_limit * _n_el);
   }
 }

@@ -10,6 +10,23 @@
 #include "TODesignResponse.h"
 #include "MooseError.h"
 
+MooseEnum
+TODesignResponse::getUsageEnum()
+{
+  auto usage = MooseEnum("objective constraint", "");
+  return usage;
+}
+
+MooseEnum
+TODesignResponse::getInequalityTypeEnum()
+{
+  auto type = MooseEnum("le ge", "le");
+
+  type.addDocumentation("le", "Inequality constraint, less equal.");
+  type.addDocumentation("ge", "Inequality constraint, greater equal.");
+  return type;
+}
+
 InputParameters
 TODesignResponse::validParams()
 {
@@ -18,6 +35,10 @@ TODesignResponse::validParams()
       "Base class for topology optimzation design responses that deliver absolute value for whole "
       "domain and sensitivity with respect to design variables");
   params.addRequiredParam<MooseEnum>("usage", TODesignResponse::getUsageEnum(), "The usage");
+  params.addParam<MooseEnum>("inequality_type",
+                             TODesignResponse::getInequalityTypeEnum(),
+                             "Whether the limit should be used as upper limit (less equal, le) or "
+                             "lower limit (greater equal, ge).");
   params.addParam<Real>("limit", "Limit"); /*upper limit for now*/
   params.addRequiredParam<AuxVariableName>("value", "Name of the value variable.");
   params.addRequiredCoupledVar("sensitivity", "Name of the sensitivity variable.");
@@ -32,6 +53,7 @@ TODesignResponse::TODesignResponse(const InputParameters & parameters)
   : ElementUserObject(parameters),
     _n_el(_mesh.getMesh().n_elem()),
     _usage(getParam<MooseEnum>("usage").getEnum<Usage>()),
+    _inequality_type(getParam<MooseEnum>("inequality_type").getEnum<InequalityType>()),
     _is_objective(_usage == Usage::OBJECTIVE),
     _is_constraint(_usage == Usage::CONSTRAINT),
     _scalar_value(&_subproblem.getScalarVariable(_tid, parameters.get<AuxVariableName>("value"))),
@@ -49,11 +71,9 @@ TODesignResponse::TODesignResponse(const InputParameters & parameters)
     mooseError("Limit needed when usage is set to constraint");
   else if (_is_objective && isParamValid("limit"))
     mooseError("No limit needed when usage is set to objective function");
-}
 
-MooseEnum
-TODesignResponse::getUsageEnum()
-{
-  auto usage = MooseEnum("objective constraint", "");
-  return usage;
+  if (_inequality_type == InequalityType::LE)
+    _con_sign = 1;
+  if (_inequality_type == InequalityType::GE)
+    _con_sign = -1;
 }

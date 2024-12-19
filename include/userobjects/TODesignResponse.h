@@ -28,6 +28,12 @@ enum class ConstraintType
   RELATIVE
 };
 
+enum class InequalityType
+{
+  LE,
+  GE
+};
+
 class TODesignResponse : public ElementUserObject
 {
 public:
@@ -65,6 +71,8 @@ protected:
   unsigned int _n_el;
   /// The usage
   const Usage _usage;
+  /// Constraint type
+  const InequalityType _inequality_type;
   /// Flag for objective function
   const bool _is_objective;
   /// Flag for constraint
@@ -86,10 +94,18 @@ protected:
   /// Physical density variable
   const MooseVariable * _physical_density;
   // TODO: Already collect design density here and supply to all responses?
+  /// Sign to differentiate less equal/greater equal
+  int _con_sign;
 
   /**
    * Get usage
    * @return enum
    */
   static MooseEnum getUsageEnum();
+
+  /**
+   * Get inequality type
+   * @return enum
+   */
+  static MooseEnum getInequalityTypeEnum();
 };

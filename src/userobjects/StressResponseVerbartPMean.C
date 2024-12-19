@@ -65,6 +65,7 @@ StressResponseVerbartPMean::computeValue()
   }
   _communicator.sum(sum);
   _value = std::pow(1.0 / _n_el * sum, 1.0 / _P) - 1;
+  _value *= _con_sign;
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());
@@ -133,6 +134,6 @@ StressResponseVerbartPMean::computeSensitivity()
   RealEigenVector T2 = computeT2(lambda);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    elem_data.stress_sensitivity = T1(id) + T2(id);
+    elem_data.stress_sensitivity = _con_sign * (T1(id) + T2(id));
   }
 }

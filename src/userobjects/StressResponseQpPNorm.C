@@ -79,7 +79,10 @@ StressResponseQpPNorm::computeValue()
   if (_is_objective)
     _value = PN;
   if (_is_constraint)
+  {
     _value = PN / _scaled_limit - 1;
+    _value *= _con_sign;
+  }
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());
@@ -155,6 +158,6 @@ StressResponseQpPNorm::computeSensitivity()
   RealEigenVector T2 = computeT2(lambda);
   for (auto && [id, elem_data] : _elem_data_map)
   {
-    elem_data.stress_sensitivity = T1(id) + T2(id);
+    elem_data.stress_sensitivity = _con_sign * (T1(id) + T2(id));
   }
 }

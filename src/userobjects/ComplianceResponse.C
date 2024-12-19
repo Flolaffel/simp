@@ -325,7 +325,10 @@ ComplianceResponse::computeValue()
   if (_is_objective)
     _value = c;
   if (_is_constraint)
+  {
     _value = c / _limit - 1;
+    _value *= _con_sign;
+  }
   _scalar_value->reinit();
   _scalar_value->setValues(_value);
   _scalar_value->insert(_scalar_value->sys().solution());
@@ -346,7 +349,7 @@ ComplianceResponse::computeSensitivity()
     // elem_data.compliance_sensitivity = 1 / (_l_el * _l_el * _limit) * -_p *
     //                                    std::pow(elem_data.physical_density, _p - 1) *
     //                                    (_E0 - _Emin) * u_el.transpose() * _KE * u_el;
-    elem_data.compliance_sensitivity = 1 / _limit * -_p *
+    elem_data.compliance_sensitivity = _con_sign * 1 / _limit * -_p *
                                        std::pow(elem_data.physical_density, _p - 1) *
                                        (_E0 - _Emin) * u_el.transpose() * _KE * u_el;
   }
