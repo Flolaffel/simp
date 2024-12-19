@@ -56,14 +56,14 @@ StressResponseBase::validParams()
 StressResponseBase::StressResponseBase(const InputParameters & parameters)
   : TODesignResponse(parameters),
     _dof_map(_sys.dofMap()),
+    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator")),
     _displacement_names(getParam<std::vector<VariableName>>("displacements")),
     _E0(getParam<Real>("E0")),
     _Emin(getParam<Real>("Emin")),
     _nu(getParam<Real>("poissons_ratio")),
     _p(getParam<Real>("p")),
     _P(getParam<Real>("P")),
-    _system_matrix_name(getParam<std::string>("system_matrix")),
-    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator"))
+    _system_matrix_name(getParam<std::string>("system_matrix"))
 {
   _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
   _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);

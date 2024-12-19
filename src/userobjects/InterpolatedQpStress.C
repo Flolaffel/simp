@@ -37,17 +37,17 @@ InterpolatedQpStress::validParams()
 
 InterpolatedQpStress::InterpolatedQpStress(const InputParameters & parameters)
   : ElementUserObject(parameters),
-    _q(getParam<Real>("q")),
-    _displacement_names(getParam<std::vector<VariableName>>("displacements")),
+    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator")),
     _physical_density_name(getParam<VariableName>("physical_density")),
     _physical_density(&_subproblem.getStandardVariable(_tid, _physical_density_name)),
+    _interpolated_micro_vonmises_stress(&writableVariable("interpolated_micro_vonmises_stress")),
+    _micro_vonmises_stress(&writableVariable("micro_vonmises_stress")),
+    _displacement_names(getParam<std::vector<VariableName>>("displacements")),
     _E0(getParam<Real>("E0")),
     _Emin(getParam<Real>("Emin")),
     _nu(getParam<Real>("poissons_ratio")),
     _p(getParam<Real>("p")),
-    _interpolated_micro_vonmises_stress(&writableVariable("interpolated_micro_vonmises_stress")),
-    _micro_vonmises_stress(&writableVariable("micro_vonmises_stress")),
-    _mesh_generator(getParam<MeshGeneratorName>("mesh_generator"))
+    _q(getParam<Real>("q"))
 {
   _nx = getMeshProperty<unsigned int>("num_elements_x", _mesh_generator);
   _ny = getMeshProperty<unsigned int>("num_elements_y", _mesh_generator);
